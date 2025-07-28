@@ -1,0 +1,5 @@
+server = "default.icb.net"
+server-port = 7326
+listen-address = "127.0.0.1"
+# listen-port = 6667
+listen-port = 1234
