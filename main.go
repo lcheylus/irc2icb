@@ -143,6 +143,11 @@ func main() {
 		config.ListenPort = config_from_file.ListenPort
 	}
 
+	// Default value listen address
+	if config.ListenAddr == "" {
+		config.ListenAddr = "localhost"
+	}
+
 	// Default value for server port if not defined
 	if config.Server != "" && config.ServerPort == 0 {
 		config.ServerPort = 7326
