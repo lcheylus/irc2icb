@@ -16,7 +16,7 @@ const Version = "devel"
 
 // Struct for configuration (set via opt flags or TOML file)
 type Config struct {
-	Daemon     bool
+	Debug      bool
 	ConfigFile string
 	ListenAddr string `toml:"listen-address"`
 	ListenPort int    `toml:"listen-port"`
@@ -35,7 +35,7 @@ func printUsage() {
 	fmt.Println("\nOptions:")
 	fmt.Println("  -h, --help\t\t\tShow this help message")
 	fmt.Println("  -v, --version\t\t\tShow version")
-	fmt.Println("  -d, --daemon\t\t\tDo not daemonize (detach from controlling terminal) and produce debugging output on stdout/stderr")
+	fmt.Println("  -d, --debug\t\t\tDo not daemonize (detach from controlling terminal) and produce debugging output on stdout/stderr")
 	fmt.Println("  -c, --conf conffile\t\tConfiguration file (TOML format)")
 	fmt.Println("  -l, --listen listen-address\tBind to the specified address when listening for client connections. If not specified, connections to any address are accepted")
 	fmt.Println("  -p, --listen-port listen-port\tBind to the specified port when listening for client connections. Defaults to 6667 when not specified")
@@ -51,7 +51,7 @@ func parseOptions() Config {
 	options := []optparse.Option{
 		{"help", 'h', optparse.KindNone},
 		{"version", 'v', optparse.KindNone},
-		{"daemon", 'd', optparse.KindNone},
+		{"debug", 'd', optparse.KindNone},
 		{"conf", 'c', optparse.KindRequired},
 		{"listen", 'l', optparse.KindRequired},
 		{"listen-port", 'p', optparse.KindRequired},
@@ -72,8 +72,8 @@ func parseOptions() Config {
 		case "version":
 			fmt.Println(Version)
 			os.Exit(0)
-		case "daemon":
-			config.Daemon = true
+		case "debug":
+			config.Debug = true
 		case "conf":
 			config.ConfigFile = result.Optarg
 		case "listen":
@@ -158,7 +158,7 @@ func main() {
 		config.ListenPort = 6667
 	}
 
-	fmt.Println("daemon", config.Daemon)
+	fmt.Println("debug", config.Debug)
 	fmt.Println("conf-file", config.ConfigFile)
 	fmt.Println("listen-addr", config.ListenAddr)
 	fmt.Println("listen-port", config.ListenPort)
