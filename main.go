@@ -7,7 +7,7 @@ import (
 	"os"
 	"strconv"
 
-	"irc2icb/utils"
+	optparse "irc2icb/utils"
 
 	"github.com/BurntSushi/toml"
 )
@@ -17,6 +17,7 @@ const Version = "devel"
 // Struct for configuration (set via opt flags or TOML file)
 type Config struct {
 	Debug      bool
+	LogFile    string
 	ConfigFile string
 	ListenAddr string `toml:"listen-address"`
 	ListenPort int    `toml:"listen-port"`
@@ -31,11 +32,12 @@ func printError(err string) {
 
 // Print usage / help message
 func printUsage() {
-	fmt.Println("Usage: irc2icb [-h] [-v] [-d] -c conffile | [-l address] [-p port] -s server [-P port]")
+	fmt.Println("Usage: irc2icb [-h] [-v] [-d] [-f logfile] -c conffile | [-l address] [-p port] -s server [-P port]")
 	fmt.Println("\nOptions:")
 	fmt.Println("  -h, --help\t\t\tShow this help message")
 	fmt.Println("  -v, --version\t\t\tShow version")
 	fmt.Println("  -d, --debug\t\t\tDo not daemonize (detach from controlling terminal) and produce debugging output on stdout/stderr")
+	fmt.Println("  -f, --logfile logfile\t\tFile to write logs")
 	fmt.Println("  -c, --conf conffile\t\tConfiguration file (TOML format)")
 	fmt.Println("  -l, --listen listen-address\tBind to the specified address when listening for client connections. If not specified, connections to any address are accepted")
 	fmt.Println("  -p, --listen-port listen-port\tBind to the specified port when listening for client connections. Defaults to 6667 when not specified")
@@ -52,6 +54,7 @@ func parseOptions() Config {
 		{"help", 'h', optparse.KindNone},
 		{"version", 'v', optparse.KindNone},
 		{"debug", 'd', optparse.KindNone},
+		{"logfile", 'f', optparse.KindRequired},
 		{"conf", 'c', optparse.KindRequired},
 		{"listen", 'l', optparse.KindRequired},
 		{"listen-port", 'p', optparse.KindRequired},
@@ -74,6 +77,8 @@ func parseOptions() Config {
 			os.Exit(0)
 		case "debug":
 			config.Debug = true
+		case "logfile":
+			config.LogFile = result.Optarg
 		case "conf":
 			config.ConfigFile = result.Optarg
 		case "listen":
@@ -143,6 +148,21 @@ func main() {
 		config.ListenPort = config_from_file.ListenPort
 	}
 
+	if !config.Debug {
+		if config.LogFile == "" {
+			printError("log file must be defined")
+		}
+		// Check write permissions for log file
+		_, err := os.OpenFile(config.LogFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		if err != nil {
+			printError(fmt.Sprintf("unable to write in log file '%s' - err = %s", config.LogFile, err.Error()))
+		}
+	} else {
+		if config.LogFile != "" {
+			fmt.Println("[Info] log file not used in debug mode")
+		}
+	}
+
 	// Default value listen address
 	if config.ListenAddr == "" {
 		config.ListenAddr = "localhost"
@@ -159,6 +179,7 @@ func main() {
 	}
 
 	fmt.Println("debug", config.Debug)
+	fmt.Println("logfile", config.LogFile)
 	fmt.Println("conf-file", config.ConfigFile)
 	fmt.Println("listen-addr", config.ListenAddr)
 	fmt.Println("listen-port", config.ListenPort)
