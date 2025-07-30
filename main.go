@@ -7,7 +7,7 @@ import (
 	"os"
 	"strconv"
 
-	"irc2icb/optparse"
+	"irc2icb/utils"
 
 	"github.com/BurntSushi/toml"
 )
@@ -164,4 +164,6 @@ func main() {
 	fmt.Println("listen-port", config.ListenPort)
 	fmt.Println("server", config.Server)
 	fmt.Println("server-port", config.ServerPort)
+
+	os.Exit(0)
 }
