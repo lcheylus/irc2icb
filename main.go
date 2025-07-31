@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/exec"
 	"strconv"
+	"syscall"
+	"time"
 
 	optparse "irc2icb/utils"
 
@@ -137,6 +140,48 @@ func loadConfig(pathname string) Config {
 	return config
 }
 
+// Fork process as daemon, returns new process PID
+func Fork() (int, error) {
+	cmd := exec.Command(os.Args[0], os.Args[1:]...)
+	// Add env to run process as daemon
+	cmd.Env = append(os.Environ(), "IS_DAEMON=1")
+	cmd.Stdin = nil
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		// Setsid is used to detach the process from the parent (normally a shell)
+		Setsid: true,
+	}
+	if err := cmd.Start(); err != nil {
+		return 0, err
+	}
+	return cmd.Process.Pid, nil
+}
+
+// Process run as daemon
+func processDaemon(pathname string, n int) {
+	var file *os.File
+
+	if pathname != "" {
+		file, _ = os.OpenFile(pathname, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		defer file.Close()
+		// Redirect stdout and stderr
+		os.Stdout = file
+		os.Stderr = file
+	} else {
+		file = os.Stdout
+	}
+
+	file.WriteString(fmt.Sprintf("Process running... - PID = %d\n", os.Getpid()))
+
+	for count := 0; count < n; count++ {
+		file.WriteString(fmt.Sprintf("count = %d\n", count))
+		time.Sleep(1 * time.Second)
+	}
+
+	file.WriteString(fmt.Sprintf("Process exit - PID = %d\n", os.Getpid()))
+}
+
 func main() {
 	config := parseOptions()
 
@@ -153,13 +198,16 @@ func main() {
 			printError("log file must be defined")
 		}
 		// Check write permissions for log file
-		_, err := os.OpenFile(config.LogFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		f, err := os.OpenFile(config.LogFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 		if err != nil {
-			printError(fmt.Sprintf("unable to write in log file '%s' - err = %s", config.LogFile, err.Error()))
+			printError(fmt.Sprintf("unable to write in log file '%s' (%s)", config.LogFile, err.Error()))
 		}
+		f.Close()
 	} else {
 		if config.LogFile != "" {
-			fmt.Println("[Info] log file not used in debug mode")
+			// Print logs to Stdout in debug mode
+			config.LogFile = ""
+			fmt.Println("[INFO] log file not used in debug mode")
 		}
 	}
 
@@ -185,6 +233,19 @@ func main() {
 	fmt.Println("listen-port", config.ListenPort)
 	fmt.Println("server", config.Server)
 	fmt.Println("server-port", config.ServerPort)
+
+	if !config.Debug && os.Getenv("IS_DAEMON") != "1" {
+		pid, err := Fork()
+		if err != nil {
+			printError(fmt.Sprintf("unable to fork process - err = %s", err.Error()))
+		} else {
+			fmt.Printf("Process started with PID %d\n", pid)
+		}
+		os.Exit(0) // Parent exits
+	}
+
+	// We're now in the daemonized child process
+	processDaemon(config.LogFile, 10)
 
 	os.Exit(0)
 }
