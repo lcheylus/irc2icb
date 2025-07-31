@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"log"
 	"net"
 	"os"
 	"os/exec"
@@ -27,11 +28,6 @@ type Config struct {
 	ListenPort int    `toml:"listen-port"`
 	Server     string `toml:"server"`
 	ServerPort int    `toml:"server-port"`
-}
-
-func printError(err string) {
-	fmt.Fprintf(os.Stderr, "ERROR: %s\n", err)
-	os.Exit(1)
 }
 
 // Print usage / help message
@@ -68,7 +64,7 @@ func parseOptions() Config {
 
 	results, _, err := optparse.Parse(options, os.Args)
 	if err != nil {
-		printError(err.Error())
+		log.Fatalf("[ERROR] unable to parse config file - (err = %s)", err.Error())
 	}
 
 	for _, result := range results {
@@ -89,35 +85,35 @@ func parseOptions() Config {
 			config.ListenAddr = result.Optarg
 			ip := net.ParseIP(config.ListenAddr)
 			if ip == nil {
-				printError(fmt.Sprintf("listen-addr is not a valid IP address (value = %s)", config.ListenAddr))
+				log.Fatalf("[ERROR] listen-addr is not a valid IP address (value = %s)", config.ListenAddr)
 			}
 		case "listen-port":
 			config.ListenPort, err = strconv.Atoi(result.Optarg)
 			if err != nil {
-				printError("listen-port must be an integer")
+				log.Fatalln("[ERROR] listen-port must be an integer")
 			}
 			if config.ListenPort < 0 || config.ListenPort > 65535 {
-				printError(fmt.Sprintf("invalid value for listen-port (value = %d)", config.ListenPort))
+				log.Fatalf("[ERROR] invalid value for listen-port (value = %d)", config.ListenPort)
 			}
 		case "server":
 			config.Server = result.Optarg
 		case "server-port":
 			config.ServerPort, err = strconv.Atoi(result.Optarg)
 			if err != nil {
-				printError("server-port must be an integer")
+				log.Fatalln("[ERROR] server-port must be an integer")
 			}
 			if config.ServerPort < 0 || config.ServerPort > 65535 {
-				printError(fmt.Sprintf("invalid value for server-port (value = %d)", config.ServerPort))
+				log.Fatalf("[ERROR] invalid value for server-port (value = %d)", config.ServerPort)
 			}
 		}
 	}
 
 	if config.ConfigFile == "" && config.Server == "" {
-		printError("config file or server name must be set")
+		log.Fatalln("[ERROR] config file or server name must be set")
 	}
 
 	if config.ConfigFile != "" && config.Server != "" {
-		printError("use only configuration file or server address, not both")
+		log.Fatalln("[ERROR] use only configuration file or server address, not both")
 	}
 
 	return config
@@ -130,12 +126,12 @@ func loadConfig(pathname string) Config {
 	if _, err := os.Stat(pathname); err == nil {
 		_, err_config := toml.DecodeFile(pathname, &config)
 		if err_config != nil {
-			printError(fmt.Sprintf("unable to load config from file '%s' (err = %s)", pathname, err_config.Error()))
+			log.Fatalf("[ERROR] unable to load config from file '%s' (err = %s)", pathname, err_config.Error())
 		}
 	} else if errors.Is(err, os.ErrNotExist) {
-		printError(fmt.Sprintf("unknown '%s' file", pathname))
+		log.Fatalf("[ERROR] unknown '%s' config file", pathname)
 	} else {
-		printError(fmt.Sprintf("unable to open file '%s' (err = %s) ", pathname, err.Error()))
+		log.Fatalf("[ERROR] unable to open config file '%s' (err = %s) ", pathname, err.Error())
 	}
 
 	return config
@@ -165,36 +161,34 @@ func handleSignals() {
 	signal.Notify(sigChannel, os.Interrupt, syscall.SIGTERM)
 	signalReceived := <-sigChannel
 
-	fmt.Printf("Received Signal: %s\n", signalReceived.String())
-	fmt.Printf("Process exited - PID = %d\n", os.Getpid())
+	log.Printf("Received Signal: %s\n", signalReceived.String())
+	log.Printf("Process exited - PID = %d\n", os.Getpid())
 	os.Exit(0)
 }
 
 // Process run as daemon
 func processDaemon(pathname string, n int) {
-	var file *os.File
-
 	if pathname != "" {
-		file, _ = os.OpenFile(pathname, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		file, _ := os.OpenFile(pathname, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 		defer file.Close()
-		// Redirect stdout and stderr
-		os.Stdout = file
-		os.Stderr = file
-	} else {
-		file = os.Stdout
+
+		log.SetOutput(file)
 	}
 
-	file.WriteString(fmt.Sprintf("Process running... - PID = %d\n", os.Getpid()))
+	log.Printf("Process running... - PID = %d\n", os.Getpid())
 
 	for count := 0; count < n; count++ {
-		file.WriteString(fmt.Sprintf("count = %d\n", count))
+		log.Printf("count = %d\n", count)
 		time.Sleep(1 * time.Second)
 	}
 
-	file.WriteString(fmt.Sprintf("Process exited - PID = %d\n", os.Getpid()))
+	log.Printf("Process exited - PID = %d\n", os.Getpid())
 }
 
 func main() {
+	// No prefix for logs
+	log.SetFlags(0)
+
 	config := parseOptions()
 
 	if config.ConfigFile != "" {
@@ -207,19 +201,19 @@ func main() {
 
 	if !config.Debug {
 		if config.LogFile == "" {
-			printError("log file must be defined")
+			log.Fatal("[ERROR] log file must be defined")
 		}
 		// Check write permissions for log file
 		f, err := os.OpenFile(config.LogFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 		if err != nil {
-			printError(fmt.Sprintf("unable to write in log file '%s' (%s)", config.LogFile, err.Error()))
+			log.Fatalf("[ERROR] unable to write in log file '%s' (%s)", config.LogFile, err.Error())
 		}
 		f.Close()
 	} else {
 		if config.LogFile != "" {
 			// Print logs to Stdout in debug mode
 			config.LogFile = ""
-			fmt.Println("[INFO] log file not used in debug mode")
+			log.Println("[INFO] log file not used in debug mode")
 		}
 	}
 
@@ -238,20 +232,20 @@ func main() {
 		config.ListenPort = 6667
 	}
 
-	fmt.Println("debug", config.Debug)
-	fmt.Println("logfile", config.LogFile)
-	fmt.Println("conf-file", config.ConfigFile)
-	fmt.Println("listen-addr", config.ListenAddr)
-	fmt.Println("listen-port", config.ListenPort)
-	fmt.Println("server", config.Server)
-	fmt.Println("server-port", config.ServerPort)
+	log.Println("debug", config.Debug)
+	log.Println("logfile", config.LogFile)
+	log.Println("conf-file", config.ConfigFile)
+	log.Println("listen-addr", config.ListenAddr)
+	log.Println("listen-port", config.ListenPort)
+	log.Println("server", config.Server)
+	log.Println("server-port", config.ServerPort)
 
 	if !config.Debug && os.Getenv("IS_DAEMON") != "1" {
 		pid, err := Fork()
 		if err != nil {
-			printError(fmt.Sprintf("unable to fork process - err = %s", err.Error()))
+			log.Fatalf("[ERROR] unable to fork process - err = %s", err.Error())
 		} else {
-			fmt.Printf("Process started with PID %d\n", pid)
+			log.Printf("Process started with PID %d\n", pid)
 		}
 		os.Exit(0) // Parent exits
 	}
