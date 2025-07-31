@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"os/signal"
 	"strconv"
 	"syscall"
 	"time"
@@ -158,6 +159,17 @@ func Fork() (int, error) {
 	return cmd.Process.Pid, nil
 }
 
+// Handle SIGINT/SIGTERM signals
+func handleSignals() {
+	sigChannel := make(chan os.Signal, 1)
+	signal.Notify(sigChannel, os.Interrupt, syscall.SIGTERM)
+	signalReceived := <-sigChannel
+
+	fmt.Printf("Received Signal: %s\n", signalReceived.String())
+	fmt.Printf("Process exited - PID = %d\n", os.Getpid())
+	os.Exit(0)
+}
+
 // Process run as daemon
 func processDaemon(pathname string, n int) {
 	var file *os.File
@@ -179,7 +191,7 @@ func processDaemon(pathname string, n int) {
 		time.Sleep(1 * time.Second)
 	}
 
-	file.WriteString(fmt.Sprintf("Process exit - PID = %d\n", os.Getpid()))
+	file.WriteString(fmt.Sprintf("Process exited - PID = %d\n", os.Getpid()))
 }
 
 func main() {
@@ -244,8 +256,11 @@ func main() {
 		os.Exit(0) // Parent exits
 	}
 
+	// Handle SIGINT and SIGTERM signals
+	go handleSignals()
+
 	// We're now in the daemonized child process
-	processDaemon(config.LogFile, 10)
+	processDaemon(config.LogFile, 20)
 
 	os.Exit(0)
 }
