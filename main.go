@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"log"
@@ -10,7 +11,6 @@ import (
 	"os/signal"
 	"strconv"
 	"syscall"
-	"time"
 
 	optparse "irc2icb/utils"
 
@@ -161,13 +161,40 @@ func handleSignals() {
 	signal.Notify(sigChannel, os.Interrupt, syscall.SIGTERM)
 	signalReceived := <-sigChannel
 
-	log.Printf("Received Signal: %s\n", signalReceived.String())
-	log.Printf("Process exited - PID = %d\n", os.Getpid())
+	log.Printf("[INFO] Received Signal: %s\n", signalReceived.String())
+	log.Printf("[INFO] Process exited - PID = %d\n", os.Getpid())
 	os.Exit(0)
 }
 
+// Handle datas from TCP connection
+func handleConnection(conn net.Conn) {
+	defer conn.Close()
+
+	// Get client address
+	clientAddr := conn.RemoteAddr().String()
+	log.Printf("[DEBUG] Client connected from %s\n", clientAddr)
+
+	// Read from connection
+	scanner := bufio.NewScanner(conn)
+	for scanner.Scan() {
+		msg := scanner.Text()
+		log.Printf("[DEBUG] Received from %s: %s\n", clientAddr, msg)
+
+		// Echo message back to client
+		_, err := conn.Write([]byte("Echo: " + msg + "\n"))
+		if err != nil {
+			log.Println("[ERROR] Error writing to client:", err)
+			return
+		} else {
+			log.Println("[DEBUG] Send message back to client")
+		}
+	}
+
+	log.Printf("[DEBUG] Client disconnected: %s\n", clientAddr)
+}
+
 // Process run as daemon
-func processDaemon(pathname string, n int) {
+func runTCPDaemon(pathname string, addr string, port int) {
 	if pathname != "" {
 		file, _ := os.OpenFile(pathname, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 		defer file.Close()
@@ -176,14 +203,26 @@ func processDaemon(pathname string, n int) {
 		log.SetFlags(log.LstdFlags)
 	}
 
-	log.Printf("Process running... - PID = %d\n", os.Getpid())
+	log.Printf("[INFO] Process running... - PID = %d\n", os.Getpid())
 
-	for count := 0; count < n; count++ {
-		log.Printf("count = %d\n", count)
-		time.Sleep(1 * time.Second)
+	// Server listen on TCP
+	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", addr, port))
+	if err != nil {
+		log.Fatalf("[ERROR] unable to start TCP server - err = %s", err.Error())
 	}
+	defer listener.Close()
 
-	log.Printf("Process exited - PID = %d\n", os.Getpid())
+	log.Printf("[INFO] TCP server listening on addr %s...\n", fmt.Sprintf("%s:%d", addr, port))
+
+	for {
+		// Accept new connections
+		conn, err := listener.Accept()
+		if err != nil {
+			log.Println("[ERROR] Error accepting connection:", err)
+			continue
+		}
+		go handleConnection(conn)
+	}
 }
 
 func main() {
@@ -249,14 +288,14 @@ func main() {
 		} else {
 			log.Printf("[INFO] Process started with PID %d\n", pid)
 		}
-		os.Exit(0) // Parent exits
+		os.Exit(0) // Parent exit
 	}
 
-	// Handle SIGINT and SIGTERM signals
+	// Handle SIGINT/SIGTERM signals
 	go handleSignals()
 
-	// We're now in the daemonized child process
-	processDaemon(config.LogFile, 20)
+	// Run TCP daemon to handle IRC connection
+	runTCPDaemon(config.LogFile, config.ListenAddr, config.ListenPort)
 
 	os.Exit(0)
 }
