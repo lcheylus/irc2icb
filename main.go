@@ -173,6 +173,7 @@ func processDaemon(pathname string, n int) {
 		defer file.Close()
 
 		log.SetOutput(file)
+		log.SetFlags(log.LstdFlags)
 	}
 
 	log.Printf("Process running... - PID = %d\n", os.Getpid())
@@ -188,6 +189,7 @@ func processDaemon(pathname string, n int) {
 func main() {
 	// No prefix for logs
 	log.SetFlags(0)
+	log.SetOutput(os.Stdout)
 
 	config := parseOptions()
 
@@ -232,20 +234,20 @@ func main() {
 		config.ListenPort = 6667
 	}
 
-	log.Println("debug", config.Debug)
-	log.Println("logfile", config.LogFile)
-	log.Println("conf-file", config.ConfigFile)
-	log.Println("listen-addr", config.ListenAddr)
-	log.Println("listen-port", config.ListenPort)
-	log.Println("server", config.Server)
-	log.Println("server-port", config.ServerPort)
+	log.Println("[INFO] debug", config.Debug)
+	log.Println("[INFO] logfile", config.LogFile)
+	log.Println("[INFO] conf-file", config.ConfigFile)
+	log.Println("[INFO] listen-addr", config.ListenAddr)
+	log.Println("[INFO] listen-port", config.ListenPort)
+	log.Println("[INFO] server", config.Server)
+	log.Println("[INFO] server-port", config.ServerPort)
 
 	if !config.Debug && os.Getenv("IS_DAEMON") != "1" {
 		pid, err := Fork()
 		if err != nil {
 			log.Fatalf("[ERROR] unable to fork process - err = %s", err.Error())
 		} else {
-			log.Printf("Process started with PID %d\n", pid)
+			log.Printf("[INFO] Process started with PID %d\n", pid)
 		}
 		os.Exit(0) // Parent exits
 	}
