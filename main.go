@@ -30,6 +30,21 @@ type Config struct {
 	ServerPort int    `toml:"server-port"`
 }
 
+// Print logs for level = DEBUG
+func logDebug(msg string) {
+	log.Printf("[DEBUG] %s", msg)
+}
+
+// Print logs for level = INFO
+func logInfo(msg string) {
+	log.Printf("[INFO] %s", msg)
+}
+
+// Print logs for level = ERROR and exit
+func logError(msg string) {
+	log.Fatalf("[ERROR] %s", msg)
+}
+
 // Print usage / help message
 func printUsage() {
 	fmt.Println("Usage: irc2icb [-h] [-v] [-d] [-f logfile] -c conffile | [-l address] [-p port] -s server [-P port]")
@@ -64,7 +79,7 @@ func parseOptions() Config {
 
 	results, _, err := optparse.Parse(options, os.Args)
 	if err != nil {
-		log.Fatalf("[ERROR] unable to parse config file - (err = %s)", err.Error())
+		logError(fmt.Sprintf("unable to parse config file - (err = %s)", err.Error()))
 	}
 
 	for _, result := range results {
@@ -85,35 +100,35 @@ func parseOptions() Config {
 			config.ListenAddr = result.Optarg
 			ip := net.ParseIP(config.ListenAddr)
 			if ip == nil {
-				log.Fatalf("[ERROR] listen-addr is not a valid IP address (value = %s)", config.ListenAddr)
+				logError(fmt.Sprintf("listen-addr is not a valid IP address (value = %s)", config.ListenAddr))
 			}
 		case "listen-port":
 			config.ListenPort, err = strconv.Atoi(result.Optarg)
 			if err != nil {
-				log.Fatalln("[ERROR] listen-port must be an integer")
+				logError("listen-port must be an integer")
 			}
 			if config.ListenPort < 0 || config.ListenPort > 65535 {
-				log.Fatalf("[ERROR] invalid value for listen-port (value = %d)", config.ListenPort)
+				logError(fmt.Sprintf("invalid value for listen-port (value = %d)", config.ListenPort))
 			}
 		case "server":
 			config.Server = result.Optarg
 		case "server-port":
 			config.ServerPort, err = strconv.Atoi(result.Optarg)
 			if err != nil {
-				log.Fatalln("[ERROR] server-port must be an integer")
+				logError("server-port must be an integer")
 			}
 			if config.ServerPort < 0 || config.ServerPort > 65535 {
-				log.Fatalf("[ERROR] invalid value for server-port (value = %d)", config.ServerPort)
+				logError(fmt.Sprintf("invalid value for server-port (value = %d)", config.ServerPort))
 			}
 		}
 	}
 
 	if config.ConfigFile == "" && config.Server == "" {
-		log.Fatalln("[ERROR] config file or server name must be set")
+		logError("config file or server name must be set")
 	}
 
 	if config.ConfigFile != "" && config.Server != "" {
-		log.Fatalln("[ERROR] use only configuration file or server address, not both")
+		logError("use only configuration file or server address, not both")
 	}
 
 	return config
@@ -126,12 +141,12 @@ func loadConfig(pathname string) Config {
 	if _, err := os.Stat(pathname); err == nil {
 		_, err_config := toml.DecodeFile(pathname, &config)
 		if err_config != nil {
-			log.Fatalf("[ERROR] unable to load config from file '%s' (err = %s)", pathname, err_config.Error())
+			logError(fmt.Sprintf("unable to load config from file '%s' (err = %s)", pathname, err_config.Error()))
 		}
 	} else if errors.Is(err, os.ErrNotExist) {
-		log.Fatalf("[ERROR] unknown '%s' config file", pathname)
+		logError(fmt.Sprintf("unknown '%s' config file", pathname))
 	} else {
-		log.Fatalf("[ERROR] unable to open config file '%s' (err = %s) ", pathname, err.Error())
+		logError(fmt.Sprintf("unable to open config file '%s' (err = %s) ", pathname, err.Error()))
 	}
 
 	return config
@@ -161,8 +176,8 @@ func handleSignals() {
 	signal.Notify(sigChannel, os.Interrupt, syscall.SIGTERM)
 	signalReceived := <-sigChannel
 
-	log.Printf("[INFO] Received Signal: %s\n", signalReceived.String())
-	log.Printf("[INFO] Process exited - PID = %d\n", os.Getpid())
+	logInfo(fmt.Sprintf("Received Signal: %s\n", signalReceived.String()))
+	logInfo(fmt.Sprintf("Process exited - PID = %d\n", os.Getpid()))
 	os.Exit(0)
 }
 
@@ -172,25 +187,25 @@ func handleConnection(conn net.Conn) {
 
 	// Get client address
 	clientAddr := conn.RemoteAddr().String()
-	log.Printf("[DEBUG] Client connected from %s\n", clientAddr)
+	logDebug(fmt.Sprintf("Client connected from %s\n", clientAddr))
 
 	// Read from connection
 	scanner := bufio.NewScanner(conn)
 	for scanner.Scan() {
 		msg := scanner.Text()
-		log.Printf("[DEBUG] Received from %s: %s\n", clientAddr, msg)
+		logDebug(fmt.Sprintf("Received from %s: %s\n", clientAddr, msg))
 
 		// Echo message back to client
 		_, err := conn.Write([]byte("Echo: " + msg + "\n"))
 		if err != nil {
-			log.Println("[ERROR] Error writing to client:", err)
+			logError(fmt.Sprintf("Error writing to client: %s", err.Error()))
 			return
 		} else {
-			log.Println("[DEBUG] Send message back to client")
+			logDebug("Send message back to client")
 		}
 	}
 
-	log.Printf("[DEBUG] Client disconnected: %s\n", clientAddr)
+	logDebug(fmt.Sprintf("Client disconnected: %s\n", clientAddr))
 }
 
 // Process run as daemon
@@ -203,22 +218,22 @@ func runTCPDaemon(pathname string, addr string, port int) {
 		log.SetFlags(log.LstdFlags)
 	}
 
-	log.Printf("[INFO] Process running... - PID = %d\n", os.Getpid())
+	logInfo(fmt.Sprintf("Process running... - PID = %d\n", os.Getpid()))
 
 	// Server listen on TCP
 	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", addr, port))
 	if err != nil {
-		log.Fatalf("[ERROR] unable to start TCP server - err = %s", err.Error())
+		logError(fmt.Sprintf("unable to start TCP server - err = %s", err.Error()))
 	}
 	defer listener.Close()
 
-	log.Printf("[INFO] TCP server listening on addr %s...\n", fmt.Sprintf("%s:%d", addr, port))
+	logInfo(fmt.Sprintf("TCP server listening on addr %s...\n", fmt.Sprintf("%s:%d", addr, port)))
 
 	for {
 		// Accept new connections
 		conn, err := listener.Accept()
 		if err != nil {
-			log.Println("[ERROR] Error accepting connection:", err)
+			logError(fmt.Sprintf("Error accepting connection:", err))
 			continue
 		}
 		go handleConnection(conn)
@@ -242,19 +257,19 @@ func main() {
 
 	if !config.Debug {
 		if config.LogFile == "" {
-			log.Fatal("[ERROR] log file must be defined")
+			logError("log file must be defined")
 		}
 		// Check write permissions for log file
 		f, err := os.OpenFile(config.LogFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 		if err != nil {
-			log.Fatalf("[ERROR] unable to write in log file '%s' (%s)", config.LogFile, err.Error())
+			logError(fmt.Sprintf("unable to write in log file '%s' (%s)", config.LogFile, err.Error()))
 		}
 		f.Close()
 	} else {
 		if config.LogFile != "" {
 			// Print logs to Stdout in debug mode
 			config.LogFile = ""
-			log.Println("[INFO] log file not used in debug mode")
+			logInfo("log file not used in debug mode")
 		}
 	}
 
@@ -273,20 +288,20 @@ func main() {
 		config.ListenPort = 6667
 	}
 
-	log.Println("[INFO] debug", config.Debug)
-	log.Println("[INFO] logfile", config.LogFile)
-	log.Println("[INFO] conf-file", config.ConfigFile)
-	log.Println("[INFO] listen-addr", config.ListenAddr)
-	log.Println("[INFO] listen-port", config.ListenPort)
-	log.Println("[INFO] server", config.Server)
-	log.Println("[INFO] server-port", config.ServerPort)
+	logInfo(fmt.Sprintf("debug %t", config.Debug))
+	logInfo(fmt.Sprintf("logfile %s", config.LogFile))
+	logInfo(fmt.Sprintf("conf-file %s", config.ConfigFile))
+	logInfo(fmt.Sprintf("listen-addr %s", config.ListenAddr))
+	logInfo(fmt.Sprintf("listen-port %d", config.ListenPort))
+	logInfo(fmt.Sprintf("server %s", config.Server))
+	logInfo(fmt.Sprintf("server-port %d", config.ServerPort))
 
 	if !config.Debug && os.Getenv("IS_DAEMON") != "1" {
 		pid, err := Fork()
 		if err != nil {
-			log.Fatalf("[ERROR] unable to fork process - err = %s", err.Error())
+			logError(fmt.Sprintf("unable to fork process - err = %s", err.Error()))
 		} else {
-			log.Printf("[INFO] Process started with PID %d\n", pid)
+			logInfo(fmt.Sprintf("Process started with PID %d\n", pid))
 		}
 		os.Exit(0) // Parent exit
 	}
