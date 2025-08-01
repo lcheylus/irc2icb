@@ -1,27 +1,58 @@
 // Package for outputs/logs with level Debug, Info and Error
+// Inspired by Go stdlib slog package
 
 package utils
 
 import "log"
 
+type Level int
+
+const (
+	LevelDebug Level = -4
+	LevelInfo  Level = 0
+	// LevelWarn  Level = 4
+	// LevelError Level = 8
+)
+
+// Internal value for logs level
+var logLevel Level
+
+// Set logs level
+func SetLogLevel(level Level) {
+	logLevel = level
+}
+
+// Get logs level
+func getLevel() Level {
+	return logLevel
+}
+
 // Print log for level = DEBUG
 func LogDebug(msg string) {
-	log.Printf("[DEBUG] %s", msg)
+	if getLevel() <= LevelDebug {
+		log.Printf("[DEBUG] %s", msg)
+	}
 }
 
 // Print log for level = DEBUG with string format
 func LogDebugf(format string, args ...interface{}) {
-	log.Printf("[DEBUG] "+format, args...)
+	if getLevel() <= LevelDebug {
+		log.Printf("[DEBUG] "+format, args...)
+	}
 }
 
 // Print log for level = INFO
 func LogInfo(msg string) {
-	log.Printf("[INFO] %s", msg)
+	if getLevel() <= LevelInfo {
+		log.Printf("[INFO] %s", msg)
+	}
 }
 
 // Print log for level = INFO with string format
 func LogInfof(format string, args ...interface{}) {
-	log.Printf("[INFO] "+format, args...)
+	if getLevel() <= LevelInfo {
+		log.Printf("[INFO] "+format, args...)
+	}
 }
 
 // Print log for level = ERROR and exit

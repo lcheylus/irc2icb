@@ -202,9 +202,11 @@ func runTCPDaemon(pathname string, addr string, port int) {
 
 		log.SetOutput(file)
 		log.SetFlags(log.LstdFlags)
+
+		// logger.SetLogLevel(logger.LevelInfo)
 	}
 
-	logger.LogInfof("Process running... - PID = %d", os.Getpid())
+	logger.LogInfof("Process running - PID = %d", os.Getpid())
 
 	// Server listen on TCP
 	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", addr, port))
@@ -230,6 +232,7 @@ func main() {
 	// No prefix for logs
 	log.SetFlags(0)
 	log.SetOutput(os.Stdout)
+	logger.SetLogLevel(logger.LevelDebug)
 
 	config := parseOptions()
 
