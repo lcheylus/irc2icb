@@ -11,7 +11,7 @@
 // like getopt().
 //
 // Go package https://github.com/skeeto/optparse-go
-package optparse
+package utils
 
 import (
 	"fmt"
