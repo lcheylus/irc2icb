@@ -20,7 +20,10 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-const Version = "devel"
+const (
+	Name = "irc2icb"
+	Version = "devel"
+)
 
 // Struct for configuration (set via opt flags or TOML file)
 type Config struct {
@@ -35,7 +38,7 @@ type Config struct {
 
 // Print usage / help message
 func printUsage() {
-	fmt.Println("Usage: irc2icb [-h] [-v] [-d] [-f logfile] -c conffile | [-l address] [-p port] -s server [-P port]")
+	fmt.Printf("Usage: %s [-h] [-v] [-d] [-f logfile] -c conffile | [-l address] [-p port] -s server [-P port]\n", Name)
 	fmt.Println("\nOptions:")
 	fmt.Println("  -h, --help\t\t\tShow this help message")
 	fmt.Println("  -v, --version\t\t\tShow version")
@@ -181,7 +184,7 @@ func handleIRCConnection(conn net.Conn) {
 	logger.LogDebugf("Client connected from %s", clientAddr)
 
 	// Send IRC notification to client
-	err := irc.IrcSendNotice(conn, "*** IRC client connected to irc2icb proxy - client addr=%s", clientAddr)
+	err := irc.IrcSendNotice(conn, "*** IRC client connected to %s proxy - client addr=%s", Name, clientAddr)
 	if err != nil {
 		logger.LogErrorf("Error writing to client: %s", err.Error())
 		return
@@ -200,12 +203,12 @@ func handleIRCConnection(conn net.Conn) {
 		if ret == irc.IrcNick {
 			nick := param
 
-			msg := "Welcome to irc2icb proxy %s"
-			irc.IrcSendCode(conn, nick, "001", msg, nick)
+			msg := "Welcome to %s proxy %s"
+			irc.IrcSendCode(conn, nick, "001", msg, Name, nick)
 			logger.LogDebugf("Send 001 code message to IRC client, nick %s", nick)
 
-			msg = "Your host is irc2icb, version %s"
-			irc.IrcSendCode(conn, nick, "002", msg, Version)
+			msg = "Your host is %s, version %s"
+			irc.IrcSendCode(conn, nick, "002", msg, Name, Version)
 			logger.LogDebugf("Send 002 code message to IRC client, nick %s", nick)
 		}
 
