@@ -15,6 +15,8 @@ import (
 	logger "irc2icb/utils"
 	optparse "irc2icb/utils"
 
+	irc "irc2icb/network"
+
 	"github.com/BurntSushi/toml"
 )
 
@@ -163,39 +165,63 @@ func handleSignals() {
 	signalReceived := <-sigChannel
 
 	logger.LogInfof("Received Signal: %s", signalReceived.String())
+
+	// TODO send notification to IRC client
+
 	logger.LogInfof("Process exited - PID = %d", os.Getpid())
 	os.Exit(0)
 }
 
-// Handle datas from TCP connection
-func handleConnection(conn net.Conn) {
+// Handle datas from TCP connection for IRC client
+func handleIRCConnection(conn net.Conn) {
 	defer conn.Close()
 
 	// Get client address
 	clientAddr := conn.RemoteAddr().String()
 	logger.LogDebugf("Client connected from %s", clientAddr)
 
+	// Send IRC notification to client
+	err := irc.IrcSendNotice(conn, "*** IRC client connected to irc2icb proxy - client addr=%s", clientAddr)
+	if err != nil {
+		logger.LogErrorf("Error writing to client: %s", err.Error())
+		return
+	} else {
+		logger.LogDebug("Send notification to IRC client")
+	}
+
 	// Read from connection
 	scanner := bufio.NewScanner(conn)
 	for scanner.Scan() {
-		msg := scanner.Text()
-		logger.LogDebugf("Received from %s: %s", clientAddr, msg)
+		data := scanner.Text()
+		logger.LogDebugf("Received from IRC client [%s]: %s", clientAddr, data)
 
-		// Echo message back to client
-		_, err := conn.Write([]byte("Echo: " + msg + "\n"))
-		if err != nil {
+		// Handle IRC client commands
+		ret, param := irc.IrcCommand(conn, data)
+		if ret == irc.IrcNick {
+			nick := param
+
+			msg := "Welcome to irc2icb proxy %s"
+			irc.IrcSendCode(conn, nick, "001", msg, nick)
+			logger.LogDebugf("Send 001 code message to IRC client, nick %s", nick)
+
+			msg = "Your host is irc2icb, version %s"
+			irc.IrcSendCode(conn, nick, "002", msg, Version)
+			logger.LogDebugf("Send 002 code message to IRC client, nick %s", nick)
+		}
+
+		/* if err != nil {
 			logger.LogErrorf("Error writing to client: %s", err.Error())
 			return
 		} else {
-			logger.LogDebug("Send message back to client")
-		}
+			logger.LogDebug("Send notification to IRC client")
+		} */
 	}
 
 	logger.LogDebugf("Client disconnected: %s\n", clientAddr)
 }
 
 // Process run as daemon
-func runTCPDaemon(pathname string, addr string, port int) {
+func runIRCDaemon(pathname string, addr string, port int) {
 	if pathname != "" {
 		file, _ := os.OpenFile(pathname, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 		defer file.Close()
@@ -224,7 +250,7 @@ func runTCPDaemon(pathname string, addr string, port int) {
 			logger.LogErrorf("Error accepting connection:", err)
 			continue
 		}
-		go handleConnection(conn)
+		go handleIRCConnection(conn)
 	}
 }
 
@@ -285,6 +311,7 @@ func main() {
 	logger.LogInfof("server %s", config.Server)
 	logger.LogInfof("server-port %d", config.ServerPort)
 
+	// Fork process to run as daemon
 	if !config.Debug && os.Getenv("IS_DAEMON") != "1" {
 		pid, err := Fork()
 		if err != nil {
@@ -299,7 +326,7 @@ func main() {
 	go handleSignals()
 
 	// Run TCP daemon to handle IRC connection
-	runTCPDaemon(config.LogFile, config.ListenAddr, config.ListenPort)
+	runIRCDaemon(config.LogFile, config.ListenAddr, config.ListenPort)
 
 	os.Exit(0)
 }
