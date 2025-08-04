@@ -204,29 +204,17 @@ func handleIRCConnection(conn net.Conn) {
 		switch ret {
 		case irc.IrcCommandNick:
 			// Send codes to complete IRC client registration
-			irc.IrcSendCode(conn, irc.IrcNick, irc.RPL_WELCOME, ":Welcome to %s proxy %s", Name, irc.IrcNick)
-			logger.LogDebugf("Send RPL_WELCOME code message to IRC client, nick %s", irc.IrcNick)
-
-			irc.IrcSendCode(conn, irc.IrcNick, irc.RPL_YOURHOST, ":Your host is %s, version %s", Name, Version)
-			logger.LogDebugf("Send RPL_YOURHOST code message to IRC client, nick %s", irc.IrcNick)
-
-			irc.IrcSendCode(conn, irc.IrcNick, irc.RPL_CREATED, ":This server was created recently")
-			logger.LogDebugf("Send RPL_CREATED code message to IRC client, nick %s", irc.IrcNick)
-
-			irc.IrcSendCode(conn, irc.IrcNick, irc.RPL_MYINFO, "localhost %s-%s", Name, Version)
-			logger.LogDebugf("Send RPL_MYINFO code message to IRC client, nick %s", irc.IrcNick)
+			irc.IrcSendCode(conn, irc.IrcNick, irc.IrcReplyCodes["RPL_WELCOME"], ":Welcome to %s proxy %s", Name, irc.IrcNick)
+			irc.IrcSendCode(conn, irc.IrcNick, irc.IrcReplyCodes["RPL_YOURHOST"], ":Your host is %s, version %s", Name, Version)
+			irc.IrcSendCode(conn, irc.IrcNick, irc.IrcReplyCodes["RPL_CREATED"], ":This server was created recently")
+			irc.IrcSendCode(conn, irc.IrcNick, irc.IrcReplyCodes["RPL_MYINFO"], "localhost %s-%s", Name, Version)
 
 			// Send MOTD (message of the day)
-			irc.IrcSendCode(conn, irc.IrcNick, irc.RPL_MOTDSTART, ":- %s Message of the day - ", "localhost")
-			logger.LogDebugf("Send RPL_MOTDSTART code message to IRC client, nick %s", irc.IrcNick)
-			irc.IrcSendCode(conn, irc.IrcNick, irc.RPL_MOTD, ":- Proxy for IRC client to ICB network")
-			logger.LogDebugf("Send RPL_MOTD code message to IRC client, nick %s", irc.IrcNick)
-			irc.IrcSendCode(conn, irc.IrcNick, irc.RPL_MOTD, ":- Proxy run using irc2icb software")
-			logger.LogDebugf("Send RPL_MOTD code message to IRC client, nick %s", irc.IrcNick)
-			irc.IrcSendCode(conn, irc.IrcNick, irc.RPL_MOTD, ":- Repository: https://github.com/lcheylus/irc2icb/")
-			logger.LogDebugf("Send RPL_MOTD code message to IRC client, nick %s", irc.IrcNick)
-			irc.IrcSendCode(conn, irc.IrcNick, irc.RPL_ENDOFMOTD, ":End of MOTD command")
-			logger.LogDebugf("Send RPL_ENDOFMOTD code message to IRC client, nick %s", irc.IrcNick)
+			irc.IrcSendCode(conn, irc.IrcNick, irc.IrcReplyCodes["RPL_MOTDSTART"], ":- %s Message of the day - ", "localhost")
+			irc.IrcSendCode(conn, irc.IrcNick, irc.IrcReplyCodes["RPL_MOTD"], ":- Proxy for IRC client to ICB network")
+			irc.IrcSendCode(conn, irc.IrcNick, irc.IrcReplyCodes["RPL_MOTD"], ":- Proxy run using irc2icb software")
+			irc.IrcSendCode(conn, irc.IrcNick, irc.IrcReplyCodes["RPL_MOTD"], ":- Repository: https://github.com/lcheylus/irc2icb/")
+			irc.IrcSendCode(conn, irc.IrcNick, irc.IrcReplyCodes["RPL_ENDOFMOTD"], ":End of MOTD command")
 
 		case irc.IrcCommandUser:
 			logger.LogDebugf("IRC user = %s - realname = %s", irc.IrcUser, irc.IrcRealname)

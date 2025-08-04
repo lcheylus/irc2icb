@@ -13,26 +13,13 @@ import (
 )
 
 
-// Numeric codes for IRC reply (RFC 2812, section 5.1)
-const (
-	RPL_WELCOME = "001"
-	RPL_YOURHOST = "002"
-	RPL_CREATED = "003"
-	RPL_MYINFO = "004"
-
-	RPL_AWAY = "301"
-	RPL_UNAWAY = "305"
-	RPL_NOWAWAY = "306"
-
-	RPL_MOTDSTART = "375"
-	RPL_MOTD = "372"
-	RPL_ENDOFMOTD = "376"
-
-	RPL_LISTSTART = "321"
-	RPL_LIST = "322"
-	RPL_LISTEND = "323"
+// Variables for IRC nick, pass and username
+var (
+	IrcNick string
+	IrcPass string
+	IrcUser string
+	IrcRealname string
 )
-
 
 // Return code for IRC command
 const (
@@ -42,6 +29,39 @@ const (
 	IrcCommandUnknown
 )
 
+// Numeric codes for IRC reply (RFC 2812, section 5.1)
+// Defined as map to get names programmatically
+var IrcReplyCodes = map[string]string{
+	"RPL_WELCOME": "001",
+	"RPL_YOURHOST": "002",
+	"RPL_CREATED": "003",
+	"RPL_MYINFO": "004",
+
+	"RPL_AWAY": "301",
+	"RPL_UNAWAY": "305",
+	"RPL_NOWAWAY": "306",
+
+	"RPL_MOTDSTART": "375",
+	"RPL_MOTD": "372",
+	"RPL_ENDOFMOTD": "376",
+
+	"RPL_LISTSTART": "321",
+	"RPL_LIST": "322",
+	"RPL_LISTEND": "323",
+}
+
+// Get IRC reply code by name (RPL_xxx)
+func getIrcReplyCodesName(val string) string {
+	for name := range IrcReplyCodes {
+		if IrcReplyCodes[name] == val {
+			return name
+		}
+	}
+
+	logger.LogWarnf("getIrcReplyCodesName: unable to get name for code '%s'", val)
+	return ""
+}
+
 // ircMessage represents a parsed IRC message
 type ircMessage struct {
 	Prefix   string // optional
@@ -49,14 +69,6 @@ type ircMessage struct {
 	Params   []string
 	Trailing string // optional
 }
-
-// Variables for IRC nick, pass and username
-var (
-	IrcNick string
-	IrcPass string
-	IrcUser string
-	IrcRealname string
-)
 
 // ircParseMessage parses a raw IRC line into a ircMessage struct
 func ircParseMessage(line string) (*ircMessage, error) {
@@ -129,9 +141,9 @@ func IrcCommand(conn net.Conn, data string) (int, []string) {
 	// Send fake reply for LIST command
 	case "LIST":
 		logger.LogDebugf("Received IRC LIST command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
-		IrcSendCode(conn, IrcNick, RPL_LIST, "#channel1 10 :topic for channel1")
-		IrcSendCode(conn, IrcNick, RPL_LIST, "#channel2 20 :topic for channel2")
-		IrcSendCode(conn, IrcNick, RPL_LISTEND, ":End of /LIST")
+		IrcSendCode(conn, IrcNick, IrcReplyCodes["RPL_LIST"], "#channel1 10 :topic for channel1")
+		IrcSendCode(conn, IrcNick, IrcReplyCodes["RPL_LIST"], "#channel2 20 :topic for channel2")
+		IrcSendCode(conn, IrcNick, IrcReplyCodes["RPL_LISTEND"], ":End of /LIST")
 		logger.LogDebugf("Send IRC reply to LIST command - nick = %s", IrcNick)
 		return IrcCommandNop, nil
 	default:
@@ -159,9 +171,18 @@ func IrcSendCode(conn net.Conn, nick string, code string, format string, args ..
 	if nick == "" {
 		logger.LogWarn("nick not defined in irc.IrcSendCode function")
 	}
+
 	prefix := fmt.Sprintf("%s %s ", code, nick)
 	msg := fmt.Sprintf(format, args...)
+
 	_, err := conn.Write([]byte(prefix + msg + "\r\n"))
+	if err != nil {
+		logger.LogDebugf("Error when sending IRC message for %s code", getIrcReplyCodesName(code))
+		// TODO how to handle error if unable to send message
+	} else {
+		logger.LogDebugf("Send %s message to IRC client, nick %s", getIrcReplyCodesName(code), nick)
+	}
+
 	return err
 }
 
