@@ -202,15 +202,13 @@ func handleIRCConnection(conn net.Conn) {
 		ret, params := irc.IrcCommand(conn, data)
 		switch ret {
 		case irc.IrcCommandNick:
-			nick := params[0]
-
 			msg := ":Welcome to %s proxy %s"
-			irc.IrcSendCode(conn, nick, irc.RPL_WELCOME, msg, Name, nick)
-			logger.LogDebugf("Send RPL_WELCOME code message to IRC client, nick %s", nick)
+			irc.IrcSendCode(conn, irc.IrcNick, irc.RPL_WELCOME, msg, Name, irc.IrcNick)
+			logger.LogDebugf("Send RPL_WELCOME code message to IRC client, nick %s", irc.IrcNick)
 
 			msg = ":Your host is %s, version %s"
-			irc.IrcSendCode(conn, nick, irc.RPL_YOURHOST, msg, Name, Version)
-			logger.LogDebugf("Send RPL_YOURHOST code message to IRC client, nick %s", nick)
+			irc.IrcSendCode(conn, irc.IrcNick, irc.RPL_YOURHOST, msg, Name, Version)
+			logger.LogDebugf("Send RPL_YOURHOST code message to IRC client, nick %s", irc.IrcNick)
 
 			// TODO Send messages for 003, 004 and 005 codes
 

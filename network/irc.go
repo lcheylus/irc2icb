@@ -50,6 +50,13 @@ type ircMessage struct {
 	Trailing string // optional
 }
 
+// Variables for IRC nick, pass and username
+var (
+	IrcNick string
+	IrcPass string
+	IrcUser string
+)
+
 // ircParseMessage parses a raw IRC line into a ircMessage struct
 func ircParseMessage(line string) (*ircMessage, error) {
 	msg := &ircMessage{}
@@ -102,8 +109,9 @@ func IrcCommand(conn net.Conn, data string) (int, []string) {
 
 	switch msg.Command {
 	case "NICK":
-		logger.LogDebugf("Received IRC NICK command  - nick = %s", msg.Params[0])
-		return IrcCommandNick, msg.Params
+		IrcNick = msg.Params[0]
+		logger.LogDebugf("Received IRC NICK command  - nick = %s", IrcNick)
+		return IrcCommandNick, []string{IrcNick}
 	case "USER":
 		logger.LogDebugf("Received IRC USER command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
 		return IrcCommandUser, []string{msg.Params[0], msg.Trailing}
@@ -118,10 +126,9 @@ func IrcCommand(conn net.Conn, data string) (int, []string) {
 	// Send fake reply for LIST command
 	case "LIST":
 		logger.LogDebugf("Received IRC LIST command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
-		// TODO: get Nick from inputs
-		IrcSendCode(conn, "Foxy", RPL_LIST, "#channel1 10 :topic for channel1")
-		IrcSendCode(conn, "Foxy", RPL_LIST, "#channel2 20 :topic for channel2")
-		IrcSendCode(conn, "Foxy", RPL_LISTEND, ":End of /LIST")
+		IrcSendCode(conn, IrcNick, RPL_LIST, "#channel1 10 :topic for channel1")
+		IrcSendCode(conn, IrcNick, RPL_LIST, "#channel2 20 :topic for channel2")
+		IrcSendCode(conn, IrcNick, RPL_LISTEND, ":End of /LIST")
 		logger.LogDebugf("Send IRC reply to LIST command")
 		return IrcCommandNop, nil
 	default:
@@ -144,8 +151,8 @@ func IrcSendNotice(conn net.Conn, format string, args ...interface{}) error {
 }
 
 // Send message with code to IRC connection
+// Example with RPL_WELCOME (001) code message "001 <NICK> :Welcome to irc2icb proxy <NICK>"
 func IrcSendCode(conn net.Conn, nick string, code string, format string, args ...interface{}) error {
-	// Exemple with 001 code message "001 <NICK> :Welcome to irc2icb proxy <NICK>"
 	prefix := fmt.Sprintf("%s %s ", code, nick)
 	msg := fmt.Sprintf(format, args...)
 	_, err := conn.Write([]byte(prefix + msg + "\r\n"))
