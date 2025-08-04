@@ -14,10 +14,10 @@ import (
 
 // Return code for IRC command
 const (
-	IrcNop = iota
-	IrcNick
-	IrcUser
-	IrcUnknown
+	IrcCommandNop = iota  // Type for command without outputs
+	IrcCommandNick
+	IrcCommandUser
+	IrcCommandUnknown
 )
 
 // ircMessage represents a parsed IRC message
@@ -66,6 +66,12 @@ func ircParseMessage(line string) (*ircMessage, error) {
 }
 
 // Handle IRC command
+// Inputs:
+//   - conn: handle to IRC client connection
+//   - data: datas received from IRC server
+// Outputs:
+//   - type of IRC command (int)
+//   - datas parsed from IRC commands: params and traling ([]string)
 func IrcCommand(conn net.Conn, data string) (int, []string) {
 	msg, err := ircParseMessage(data)
 	if err != nil {
@@ -75,33 +81,37 @@ func IrcCommand(conn net.Conn, data string) (int, []string) {
 	switch msg.Command {
 	case "NICK":
 		logger.LogDebugf("Received IRC NICK command  - nick = %s", msg.Params[0])
-		return IrcNick, msg.Params
+		return IrcCommandNick, msg.Params
 	case "USER":
 		logger.LogDebugf("Received IRC USER command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
-		return IrcUser, []string{msg.Params[0], msg.Trailing}
+		return IrcCommandUser, []string{msg.Params[0], msg.Trailing}
 	case "QUIT":
 		logger.LogDebugf("Received IRC QUIT command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
-		return IrcNop, nil
+		return IrcCommandNop, nil
 	case "PING":
 		logger.LogDebugf("Received IRC PING command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
 		IrcSendMsg(conn, "PONG %s", msg.Params[0])
 		logger.LogDebugf("Send IRC PONG message")
-		return IrcNop, nil
+		return IrcCommandNop, nil
 	// TODO Send fake responses for LIST command
 	case "LIST":
 		logger.LogDebugf("Received IRC LIST command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
-		IrcSendCode(conn, "", "322", "channel1 # channel1 :topic for channel1")
-		IrcSendCode(conn, "", "323", ":End of LIST")
+		// TODO: get Nick from inputs
+		IrcSendCode(conn, "Foxy", "322", "#channel1 10 :topic for channel1")
+		IrcSendCode(conn, "Foxy", "322", "#channel2 20 :topic for channel2")
+		IrcSendCode(conn, "Foxy", "323", ":End of /LIST")
 		logger.LogDebugf("Send IRC response to LIST command")
-		return IrcNop, nil
+		return IrcCommandNop, nil
 	default:
 		logger.LogDebugf("Received unknown IRC command '%s'", msg.Command)
 	}
 
-	// USER
+	// PASS
 	// JOIN
+	// PART
+	// PRIVMSG
 
-	return IrcUnknown, []string{msg.Command}
+	return IrcCommandUnknown, []string{msg.Command}
 }
 
 // Send notification message to IRC connection
@@ -111,16 +121,16 @@ func IrcSendNotice(conn net.Conn, format string, args ...interface{}) error {
 	return err
 }
 
-// Send messages with code to IRC connection
+// Send message with code to IRC connection
 func IrcSendCode(conn net.Conn, nick string, code string, format string, args ...interface{}) error {
 	// Exemple with 001 code message "001 <NICK> :Welcome to irc2icb proxy <NICK>"
-	prefix := fmt.Sprintf("%s %s :", code, nick)
+	prefix := fmt.Sprintf("%s %s ", code, nick)
 	msg := fmt.Sprintf(format, args...)
 	_, err := conn.Write([]byte(prefix + msg + "\r\n"))
 	return err
 }
 
-// Send messages to IRC connection
+// Send message to IRC connection
 func IrcSendMsg(conn net.Conn, format string, args ...interface{}) error {
 	msg := fmt.Sprintf(format, args...)
 	_, err := conn.Write([]byte(msg + "\r\n"))
