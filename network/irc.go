@@ -115,14 +115,14 @@ func IrcCommand(conn net.Conn, data string) (int, []string) {
 		IrcSendMsg(conn, "PONG %s", msg.Params[0])
 		logger.LogDebugf("Send IRC PONG message")
 		return IrcCommandNop, nil
-	// TODO Send fake responses for LIST command
+	// Send fake reply for LIST command
 	case "LIST":
 		logger.LogDebugf("Received IRC LIST command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
 		// TODO: get Nick from inputs
-		IrcSendCode(conn, "Foxy", "322", "#channel1 10 :topic for channel1")
-		IrcSendCode(conn, "Foxy", "322", "#channel2 20 :topic for channel2")
-		IrcSendCode(conn, "Foxy", "323", ":End of /LIST")
-		logger.LogDebugf("Send IRC response to LIST command")
+		IrcSendCode(conn, "Foxy", RPL_LIST, "#channel1 10 :topic for channel1")
+		IrcSendCode(conn, "Foxy", RPL_LIST, "#channel2 20 :topic for channel2")
+		IrcSendCode(conn, "Foxy", RPL_LISTEND, ":End of /LIST")
+		logger.LogDebugf("Send IRC reply to LIST command")
 		return IrcCommandNop, nil
 	default:
 		logger.LogDebugf("Received unknown IRC command '%s'", msg.Command)
