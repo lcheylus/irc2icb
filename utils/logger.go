@@ -10,8 +10,8 @@ type Level int
 const (
 	LevelDebug Level = -4
 	LevelInfo  Level = 0
-	// LevelWarn  Level = 4
-	// LevelError Level = 8
+	LevelWarn  Level = 4
+	LevelError Level = 8
 )
 
 // Internal value for logs level
@@ -38,6 +38,20 @@ func LogDebug(msg string) {
 func LogDebugf(format string, args ...interface{}) {
 	if getLevel() <= LevelDebug {
 		log.Printf("[DEBUG] "+format, args...)
+	}
+}
+
+// Print log for level = WARN
+func LogWarn(msg string) {
+	if getLevel() <= LevelWarn {
+		log.Printf("[WARN] %s", msg)
+	}
+}
+
+// Print log for level = WARN with string format
+func LogWarnf(format string, args ...interface{}) {
+	if getLevel() <= LevelWarn {
+		log.Printf("[WARN] "+format, args...)
 	}
 }
 
