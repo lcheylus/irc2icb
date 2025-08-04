@@ -269,7 +269,7 @@ func runIRCDaemon(pathname string, addr string, port int) {
 
 func main() {
 	// No prefix for logs
-	log.SetFlags(0)
+	// log.SetFlags(0)
 	log.SetOutput(os.Stdout)
 	logger.SetLogLevel(logger.LevelDebug)
 
