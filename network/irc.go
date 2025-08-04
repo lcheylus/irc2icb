@@ -12,6 +12,28 @@ import (
 	logger "irc2icb/utils"
 )
 
+
+// Numeric codes for IRC reply (RFC 2812, section 5.1)
+const (
+	RPL_WELCOME = "001"
+	RPL_YOURHOST = "002"
+	RPL_CREATED = "003"
+	RPL_MYINFO = "004"
+
+	RPL_AWAY = "301"
+	RPL_UNAWAY = "305"
+	RPL_NOWAWAY = "306"
+
+	RPL_MOTDSTART = "375"
+	RPL_MOTD = "372"
+	RPL_ENDOFMOTD = "376"
+
+	RPL_LISTSTART = "321"
+	RPL_LIST = "322"
+	RPL_LISTEND = "323"
+)
+
+
 // Return code for IRC command
 const (
 	IrcCommandNop = iota  // Type for command without outputs
