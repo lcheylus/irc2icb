@@ -156,6 +156,9 @@ func IrcSendNotice(conn net.Conn, format string, args ...interface{}) error {
 // Send message with code to IRC connection
 // Example with RPL_WELCOME (001) code message "001 <NICK> :Welcome to irc2icb proxy <NICK>"
 func IrcSendCode(conn net.Conn, nick string, code string, format string, args ...interface{}) error {
+	if nick == "" {
+		logger.LogWarn("nick not defined in irc.IrcSendCode function")
+	}
 	prefix := fmt.Sprintf("%s %s ", code, nick)
 	msg := fmt.Sprintf(format, args...)
 	_, err := conn.Write([]byte(prefix + msg + "\r\n"))
