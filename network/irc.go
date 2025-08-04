@@ -55,6 +55,7 @@ var (
 	IrcNick string
 	IrcPass string
 	IrcUser string
+	IrcRealname string
 )
 
 // ircParseMessage parses a raw IRC line into a ircMessage struct
@@ -113,8 +114,10 @@ func IrcCommand(conn net.Conn, data string) (int, []string) {
 		logger.LogDebugf("Received IRC NICK command  - nick = %s", IrcNick)
 		return IrcCommandNick, []string{IrcNick}
 	case "USER":
+		IrcUser = msg.Params[0]
+		IrcRealname = msg.Trailing
 		logger.LogDebugf("Received IRC USER command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
-		return IrcCommandUser, []string{msg.Params[0], msg.Trailing}
+		return IrcCommandUser, []string{IrcUser, IrcRealname}
 	case "QUIT":
 		logger.LogDebugf("Received IRC QUIT command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
 		return IrcCommandNop, nil
@@ -129,7 +132,7 @@ func IrcCommand(conn net.Conn, data string) (int, []string) {
 		IrcSendCode(conn, IrcNick, RPL_LIST, "#channel1 10 :topic for channel1")
 		IrcSendCode(conn, IrcNick, RPL_LIST, "#channel2 20 :topic for channel2")
 		IrcSendCode(conn, IrcNick, RPL_LISTEND, ":End of /LIST")
-		logger.LogDebugf("Send IRC reply to LIST command")
+		logger.LogDebugf("Send IRC reply to LIST command - nick = %s", IrcNick)
 		return IrcCommandNop, nil
 	default:
 		logger.LogDebugf("Received unknown IRC command '%s'", msg.Command)

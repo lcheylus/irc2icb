@@ -199,7 +199,8 @@ func handleIRCConnection(conn net.Conn) {
 		logger.LogDebugf("Received from IRC client [%s]: %s", clientAddr, data)
 
 		// Handle IRC client commands
-		ret, params := irc.IrcCommand(conn, data)
+		// ret, params := irc.IrcCommand(conn, data)
+		ret, _ := irc.IrcCommand(conn, data)
 		switch ret {
 		case irc.IrcCommandNick:
 			msg := ":Welcome to %s proxy %s"
@@ -213,9 +214,8 @@ func handleIRCConnection(conn net.Conn) {
 			// TODO Send messages for 003, 004 and 005 codes
 
 		case irc.IrcCommandUser:
-			user := params[0]
-			realname := params[1]
-			logger.LogDebugf("IRC user = %s - realname = %s", user, realname)
+			logger.LogDebugf("IRC user = %s - realname = %s", irc.IrcUser, irc.IrcRealname)
+
 		case irc.IrcCommandUnknown:
 		default:
 		/* if err != nil {
