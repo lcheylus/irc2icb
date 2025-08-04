@@ -202,6 +202,8 @@ func handleIRCConnection(conn net.Conn) {
 		// ret, params := irc.IrcCommand(conn, data)
 		ret, _ := irc.IrcCommand(conn, data)
 		switch ret {
+		case irc.IrcCommandPass:
+			logger.LogDebugf("Password = %s", irc.IrcPassword)
 		case irc.IrcCommandNick:
 			// Send codes to complete IRC client registration
 			irc.IrcSendCode(conn, irc.IrcNick, irc.IrcReplyCodes["RPL_WELCOME"], ":Welcome to %s proxy %s", Name, irc.IrcNick)

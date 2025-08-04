@@ -16,7 +16,7 @@ import (
 // Variables for IRC nick, pass and username
 var (
 	IrcNick string
-	IrcPass string
+	IrcPassword string
 	IrcUser string
 	IrcRealname string
 )
@@ -24,6 +24,7 @@ var (
 // Return code for IRC command
 const (
 	IrcCommandNop = iota  // Type for command without outputs
+	IrcCommandPass
 	IrcCommandNick
 	IrcCommandUser
 	IrcCommandUnknown
@@ -121,6 +122,10 @@ func IrcCommand(conn net.Conn, data string) (int, []string) {
 	}
 
 	switch msg.Command {
+	case "PASS":
+		IrcPassword = msg.Params[0]
+		logger.LogDebugf("Received IRC PASS command  - password = %s", IrcPassword)
+		return IrcCommandPass, []string{IrcPassword}
 	case "NICK":
 		IrcNick = msg.Params[0]
 		logger.LogDebugf("Received IRC NICK command  - nick = %s", IrcNick)
@@ -150,7 +155,6 @@ func IrcCommand(conn net.Conn, data string) (int, []string) {
 		logger.LogDebugf("Received unknown IRC command '%s'", msg.Command)
 	}
 
-	// PASS
 	// JOIN
 	// PART
 	// PRIVMSG
@@ -180,7 +184,7 @@ func IrcSendCode(conn net.Conn, nick string, code string, format string, args ..
 		logger.LogDebugf("Error when sending IRC message for %s code", getIrcReplyCodesName(code))
 		// TODO how to handle error if unable to send message
 	} else {
-		logger.LogDebugf("Send %s message to IRC client, nick %s", getIrcReplyCodesName(code), nick)
+		logger.LogDebugf("Send %s message to IRC client - nick = %s", getIrcReplyCodesName(code), nick)
 	}
 
 	return err
