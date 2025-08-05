@@ -13,7 +13,7 @@ import (
 )
 
 
-// Variables for IRC nick, pass and username
+// Variables for IRC nick, pass, username and realname
 var (
 	IrcNick string
 	IrcPassword string
@@ -52,6 +52,8 @@ var IrcReplyCodes = map[string]string{
 }
 
 // Get IRC reply code by name (RPL_xxx)
+// Input: numeric value (as string) for code
+// Output: code's name (RPL_xxx)
 func getIrcReplyCodesName(val string) string {
 	for name := range IrcReplyCodes {
 		if IrcReplyCodes[name] == val {
@@ -113,7 +115,7 @@ func ircParseMessage(line string) (*ircMessage, error) {
 //   - conn: handle to IRC client connection
 //   - data: datas received from IRC server
 // Outputs:
-//   - type of IRC command (int)
+//   - type of IRC command (int for IrcCommandxxx)
 //   - datas parsed from IRC commands: params and traling ([]string)
 func IrcCommand(conn net.Conn, data string) (int, []string) {
 	msg, err := ircParseMessage(data)
@@ -170,7 +172,7 @@ func IrcSendNotice(conn net.Conn, format string, args ...interface{}) error {
 }
 
 // Send message with code to IRC connection
-// Example with RPL_WELCOME (001) code message "001 <NICK> :Welcome to irc2icb proxy <NICK>"
+// Example for RPL_WELCOME (001) code message: "001 <NICK> :Welcome to irc2icb proxy <NICK>"
 func IrcSendCode(conn net.Conn, nick string, code string, format string, args ...interface{}) error {
 	if nick == "" {
 		logger.LogWarn("nick not defined in irc.IrcSendCode function")
