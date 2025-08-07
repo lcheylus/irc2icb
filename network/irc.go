@@ -31,7 +31,7 @@ const (
 )
 
 // Numeric codes for IRC reply (RFC 2812, section 5.1)
-// Defined as map to get names programmatically
+// Defined as map to get key programmatically
 var IrcReplyCodes = map[string]string{
 	"RPL_WELCOME": "001",
 	"RPL_YOURHOST": "002",
@@ -51,17 +51,17 @@ var IrcReplyCodes = map[string]string{
 	"RPL_LISTEND": "323",
 }
 
-// Get IRC reply code by name (RPL_xxx)
+// Get IRC reply code by key (RPL_xxx)
 // Input: numeric value (as string) for code
-// Output: code's name (RPL_xxx)
-func getIrcReplyCodesName(val string) string {
+// Output: code (string RPL_xxx)
+func getIrcReplyCode(val string) string {
 	for name := range IrcReplyCodes {
 		if IrcReplyCodes[name] == val {
 			return name
 		}
 	}
 
-	logger.LogWarnf("getIrcReplyCodesName: unable to get name for code '%s'", val)
+	logger.LogWarnf("getIrcReplyCode: unable to get key for code '%s'", val)
 	return ""
 }
 
@@ -183,10 +183,10 @@ func IrcSendCode(conn net.Conn, nick string, code string, format string, args ..
 
 	_, err := conn.Write([]byte(prefix + msg + "\r\n"))
 	if err != nil {
-		logger.LogDebugf("Error when sending IRC message for %s code", getIrcReplyCodesName(code))
+		logger.LogDebugf("Error when sending IRC message for %s code", getIrcReplyCode(code))
 		// TODO how to handle error if unable to send message
 	} else {
-		logger.LogDebugf("Send %s message to IRC client - nick = %s", getIrcReplyCodesName(code), nick)
+		logger.LogDebugf("Send %s message to IRC client - nick = %s", getIrcReplyCode(code), nick)
 	}
 
 	return err
