@@ -35,6 +35,18 @@ const (
 // Internal value for logs level
 var logLevel Level
 
+// Disable colors for logs
+func WithoutColors() {
+	colorOff = []byte("")
+	colorRed = []byte("")
+	colorGreen = []byte("")
+	colorOrange = []byte("")
+	colorBlue = []byte("")
+	colorPurple = []byte("")
+	colorCyan = []byte("")
+	colorGray = []byte("")
+}
+
 // Set logs level
 func SetLogLevel(level Level) {
 	logLevel = level
