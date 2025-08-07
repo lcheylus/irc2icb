@@ -3,9 +3,27 @@
 
 package utils
 
-import "log"
+import (
+	"fmt"
+	"log"
+)
 
 type Level int
+
+// color pallete map
+// Code from https://github.com/Mandala/go-log/blob/master/colorful/colorful.go
+
+// TODO Handle case with outputs in file => no color
+var (
+	colorOff    = []byte("\033[0m")
+	colorRed    = []byte("\033[0;31m")
+	colorGreen  = []byte("\033[0;32m")
+	colorOrange = []byte("\033[0;33m")
+	colorBlue   = []byte("\033[0;34m")
+	colorPurple = []byte("\033[0;35m")
+	colorCyan   = []byte("\033[0;36m")
+	colorGray   = []byte("\033[0;37m")
+)
 
 const (
 	LevelDebug Level = -4
@@ -30,51 +48,74 @@ func getLevel() Level {
 // Print log for level = DEBUG
 func LogDebug(msg string) {
 	if getLevel() <= LevelDebug {
-		log.Printf("[DEBUG] %s", msg)
+		prefix := fmt.Sprintf("%sDEBUG%s", colorGreen, colorOff)
+		log.Printf("%s %s", prefix, msg)
 	}
 }
 
 // Print log for level = DEBUG with string format
 func LogDebugf(format string, args ...interface{}) {
 	if getLevel() <= LevelDebug {
-		log.Printf("[DEBUG] "+format, args...)
+		prefix := fmt.Sprintf("%sDEBUG%s", colorGreen, colorOff)
+		log.Printf(prefix+" "+format, args...)
 	}
 }
 
 // Print log for level = WARN
 func LogWarn(msg string) {
 	if getLevel() <= LevelWarn {
-		log.Printf("[WARN] %s", msg)
+		prefix := fmt.Sprintf("%sWARN%s ", colorOrange, colorOff)
+		log.Printf("%s %s", prefix, msg)
 	}
 }
 
 // Print log for level = WARN with string format
 func LogWarnf(format string, args ...interface{}) {
 	if getLevel() <= LevelWarn {
-		log.Printf("[WARN] "+format, args...)
+		// log.Printf("[WARN] "+format, args...)
+		prefix := fmt.Sprintf("%sWARN%s ", colorOrange, colorOff)
+		log.Printf(prefix+" "+format, args...)
 	}
 }
 
 // Print log for level = INFO
 func LogInfo(msg string) {
 	if getLevel() <= LevelInfo {
-		log.Printf("[INFO] %s", msg)
+		prefix := fmt.Sprintf("%sINFO%s ", colorCyan, colorOff)
+		log.Printf("%s %s", prefix, msg)
 	}
 }
 
 // Print log for level = INFO with string format
 func LogInfof(format string, args ...interface{}) {
 	if getLevel() <= LevelInfo {
-		log.Printf("[INFO] "+format, args...)
+		// log.Printf("[INFO] "+format, args...)
+		prefix := fmt.Sprintf("%sINFO%s ", colorCyan, colorOff)
+		log.Printf(prefix+" "+format, args...)
 	}
 }
 
-// Print log for level = ERROR and exit
+// Print log for level = ERROR
 func LogError(msg string) {
-	log.Fatalf("[ERROR] %s", msg)
+	prefix := fmt.Sprintf("%sERROR%s", colorRed, colorOff)
+	log.Printf("%s %s", prefix, msg)
 }
 
-// Print log for level = ERROR with string format, then exit
+// Print log for level = ERROR with string format
 func LogErrorf(format string, args ...interface{}) {
-	log.Fatalf("[ERROR] "+format, args...)
+	prefix := fmt.Sprintf("%sERROR%s", colorRed, colorOff)
+	log.Printf(prefix+" "+format, args...)
+}
+
+// Print log for level = ERROR then exit
+func LogFatal(msg string) {
+	prefix := fmt.Sprintf("%sFATAL%s", colorPurple, colorOff)
+	log.Fatalf("%s %s", prefix, msg)
+}
+
+// Print log for level = ERROR with string format
+// Print log for level = ERROR then exit
+func LogFatalf(format string, args ...interface{}) {
+	prefix := fmt.Sprintf("%sFATAL%s", colorPurple, colorOff)
+	log.Fatalf(prefix+" "+format, args...)
 }
