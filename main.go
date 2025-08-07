@@ -251,6 +251,7 @@ func runIRCDaemon(pathname string, addr string, port int) {
 
 		log.SetOutput(file)
 		log.SetFlags(log.LstdFlags)
+		logger.WithoutColors()
 
 		// logger.SetLogLevel(logger.LevelInfo)
 	}
@@ -335,7 +336,6 @@ func main() {
 	logger.LogInfof("server-port %d", config.ServerPort)
 
 	logger.SetLogLevel(logger.LevelDebug)
-	log.SetFlags(log.LstdFlags)
 
 	// Fork process to run as daemon
 	if !config.Debug && os.Getenv("IS_DAEMON") != "1" {
@@ -347,6 +347,8 @@ func main() {
 		}
 		os.Exit(0) // Parent exit
 	}
+
+	log.SetFlags(log.LstdFlags)
 
 	// Handle SIGINT/SIGTERM signals
 	go handleSignals()
