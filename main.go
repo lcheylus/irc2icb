@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	Name = "irc2icb"
+	Name    = "irc2icb"
 	Version = "devel"
 )
 
@@ -71,6 +71,7 @@ func parseOptions() Config {
 	results, _, err := optparse.Parse(options, os.Args)
 	if err != nil {
 		logger.LogError(err.Error())
+		os.Exit(1)
 	}
 
 	for _, result := range results {
@@ -92,14 +93,17 @@ func parseOptions() Config {
 			ip := net.ParseIP(config.ListenAddr)
 			if ip == nil {
 				logger.LogErrorf("listen-addr is not a valid IP address (value = %s)", config.ListenAddr)
+				os.Exit(1)
 			}
 		case "listen-port":
 			config.ListenPort, err = strconv.Atoi(result.Optarg)
 			if err != nil {
 				logger.LogError("listen-port must be an integer")
+				os.Exit(1)
 			}
 			if config.ListenPort < 0 || config.ListenPort > 65535 {
 				logger.LogErrorf("invalid value for listen-port (value = %d)", config.ListenPort)
+				os.Exit(1)
 			}
 		case "server":
 			config.Server = result.Optarg
@@ -107,19 +111,23 @@ func parseOptions() Config {
 			config.ServerPort, err = strconv.Atoi(result.Optarg)
 			if err != nil {
 				logger.LogError("server-port must be an integer")
+				os.Exit(1)
 			}
 			if config.ServerPort < 0 || config.ServerPort > 65535 {
 				logger.LogErrorf("invalid value for server-port (value = %d)", config.ServerPort)
+				os.Exit(1)
 			}
 		}
 	}
 
 	if config.ConfigFile == "" && config.Server == "" {
 		logger.LogError("config file or server name must be set")
+		os.Exit(1)
 	}
 
 	if config.ConfigFile != "" && config.Server != "" {
 		logger.LogError("use only configuration file or server address, not both")
+		os.Exit(1)
 	}
 
 	return config
@@ -132,12 +140,12 @@ func loadConfig(pathname string) Config {
 	if _, err := os.Stat(pathname); err == nil {
 		_, err_config := toml.DecodeFile(pathname, &config)
 		if err_config != nil {
-			logger.LogErrorf("unable to load config from file '%s' (err = %s)", pathname, err_config.Error())
+			logger.LogFatalf("unable to load config from file '%s' (err = %s)", pathname, err_config.Error())
 		}
 	} else if errors.Is(err, os.ErrNotExist) {
-		logger.LogErrorf("unknown '%s' config file", pathname)
+		logger.LogFatalf("unknown '%s' config file", pathname)
 	} else {
-		logger.LogErrorf("unable to open config file '%s' (err = %s) ", pathname, err.Error())
+		logger.LogFatalf("unable to open config file '%s' (err = %s) ", pathname, err.Error())
 	}
 
 	return config
@@ -223,12 +231,12 @@ func handleIRCConnection(conn net.Conn) {
 
 		case irc.IrcCommandUnknown:
 		default:
-		/* if err != nil {
-			logger.LogErrorf("Error writing to client: %s", err.Error())
-			return
-		} else {
-			logger.LogDebug("Send notification to IRC client")
-		} */
+			/* if err != nil {
+				logger.LogErrorf("Error writing to client: %s", err.Error())
+				return
+			} else {
+				logger.LogDebug("Send notification to IRC client")
+			} */
 		}
 	}
 
@@ -252,7 +260,7 @@ func runIRCDaemon(pathname string, addr string, port int) {
 	// Server listen on TCP
 	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", addr, port))
 	if err != nil {
-		logger.LogErrorf("unable to start TCP server - err = %s", err.Error())
+		logger.LogFatalf("unable to start TCP server - err = %s", err.Error())
 	}
 	defer listener.Close()
 
@@ -262,7 +270,7 @@ func runIRCDaemon(pathname string, addr string, port int) {
 		// Accept new connections
 		conn, err := listener.Accept()
 		if err != nil {
-			logger.LogErrorf("Error accepting connection:", err)
+			logger.LogFatalf("Error accepting connection:", err)
 			continue
 		}
 		go handleIRCConnection(conn)
@@ -271,9 +279,8 @@ func runIRCDaemon(pathname string, addr string, port int) {
 
 func main() {
 	// No prefix for logs
-	// log.SetFlags(0)
+	log.SetFlags(0)
 	log.SetOutput(os.Stdout)
-	logger.SetLogLevel(logger.LevelDebug)
 
 	config := parseOptions()
 
@@ -288,11 +295,12 @@ func main() {
 	if !config.Debug {
 		if config.LogFile == "" {
 			logger.LogError("log file must be defined")
+			os.Exit(1)
 		}
 		// Check write permissions for log file
 		f, err := os.OpenFile(config.LogFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 		if err != nil {
-			logger.LogErrorf("unable to write in log file '%s' (%s)", config.LogFile, err.Error())
+			logger.LogFatalf("unable to write in log file '%s' (%s)", config.LogFile, err.Error())
 		}
 		f.Close()
 	} else {
@@ -326,11 +334,14 @@ func main() {
 	logger.LogInfof("server %s", config.Server)
 	logger.LogInfof("server-port %d", config.ServerPort)
 
+	logger.SetLogLevel(logger.LevelDebug)
+	log.SetFlags(log.LstdFlags)
+
 	// Fork process to run as daemon
 	if !config.Debug && os.Getenv("IS_DAEMON") != "1" {
 		pid, err := Fork()
 		if err != nil {
-			logger.LogErrorf("unable to fork process - err = %s", err.Error())
+			logger.LogFatalf("unable to fork process - err = %s", err.Error())
 		} else {
 			logger.LogInfof("Process started with PID %d\n", pid)
 		}
