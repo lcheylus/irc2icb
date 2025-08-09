@@ -154,7 +154,7 @@ func IrcCommand(conn net.Conn, data string) (int, []string) {
 		logger.LogDebugf("Send IRC reply to LIST command - nick = %s", IrcNick)
 		return IrcCommandNop, nil
 	default:
-		logger.LogDebugf("Received unknown IRC command '%s'", msg.Command)
+		logger.LogWarnf("Received unknown IRC command '%s'", msg.Command)
 	}
 
 	// JOIN
