@@ -15,7 +15,7 @@ import (
 	logger "irc2icb/utils"
 	optparse "irc2icb/utils"
 
-	irc "irc2icb/network"
+	irc "irc2icb/network/irc"
 
 	"github.com/BurntSushi/toml"
 )
