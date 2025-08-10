@@ -153,8 +153,8 @@ func loadConfig(pathname string) Config {
 	return config
 }
 
-// Fork process as daemon, returns new process PID
-func Fork() (int, error) {
+// forkProcess process as daemon, returns new process PID
+func forkProcess() (int, error) {
 	cmd := exec.Command(os.Args[0], os.Args[1:]...)
 	// Add env to run process as daemon
 	cmd.Env = append(os.Environ(), "IS_DAEMON=1")
@@ -356,7 +356,7 @@ func main() {
 
 	// Fork process to run as daemon
 	if !config.Debug && os.Getenv("IS_DAEMON") != "1" {
-		pid, err := Fork()
+		pid, err := forkProcess()
 		if err != nil {
 			logger.LogFatalf("unable to fork process - err = %s", err.Error())
 		} else {
