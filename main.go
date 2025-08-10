@@ -18,13 +18,9 @@ import (
 
 	icb "irc2icb/network/icb"
 	irc "irc2icb/network/irc"
+	"irc2icb/version"
 
 	"github.com/BurntSushi/toml"
-)
-
-const (
-	Name    = "irc2icb"
-	Version = "devel"
 )
 
 // Struct for configuration (set via opt flags or TOML file)
@@ -40,7 +36,7 @@ type Config struct {
 
 // Print usage / help message
 func printUsage() {
-	fmt.Printf("Usage: %s [-h] [-v] [-d] [-f logfile] -c conffile | [-l address] [-p port] -s server [-P port]\n", Name)
+	fmt.Printf("Usage: %s [-h] [-v] [-d] [-f logfile] -c conffile | [-l address] [-p port] -s server [-P port]\n", version.Name)
 	fmt.Println("\nOptions:")
 	fmt.Println("  -h, --help\t\t\tShow this help message")
 	fmt.Println("  -v, --version\t\t\tShow version")
@@ -82,7 +78,7 @@ func parseOptions() Config {
 			printUsage()
 			os.Exit(0)
 		case "version":
-			fmt.Println(Version)
+			fmt.Println(version.Version)
 			os.Exit(0)
 		case "debug":
 			config.Debug = true
@@ -201,7 +197,7 @@ func handleIRCConnection(conn net.Conn, server_addr string, server_port int) {
 	logger.LogDebugf("IRC - Client connected from %s", clientAddr)
 
 	// Send IRC notification to client
-	err := irc.IrcSendNotice(conn, "*** IRC client connected to %s proxy - client addr=%s", Name, clientAddr)
+	err := irc.IrcSendNotice(conn, "*** IRC client connected to %s proxy - client addr=%s", version.Name, clientAddr)
 	if err != nil {
 		logger.LogErrorf("IRC - Error writing to client: %s", err.Error())
 		return
