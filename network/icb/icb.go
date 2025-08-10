@@ -148,6 +148,12 @@ func parseIcbPacket(reader *bufio.Reader) (*icbPacket, error) {
 	}, nil
 }
 
+// Utility function to remove last char from string if == '\x00'
+// Prevent to get null-terminated string from data
+func getIcbString(input string) string {
+	return strings.TrimSuffix(input, "\x00")
+}
+
 // Get fields from ICB packet datas
 // The fields are data separated by ASCII ^A (\001).
 // If a field is optional, it (and any fields after it) can merely be left out of the packet.
@@ -175,26 +181,27 @@ func icbGetUser(fields []string) (*icbUser, error) {
 
 	// Check if moderator ('m' or '*')
 	user.Moderator = false
-	if fields[0] != " " {
-		if fields[0] != "m" && fields[0] != "*" {
-			logger.LogWarnf("invalid moderator status = '%s'", fields[0])
+	moderator := getIcbString(fields[0])
+	if moderator != " " {
+		if moderator != "m" && moderator != "*" {
+			logger.LogWarnf("invalid moderator status = '%s'", moderator)
 		} else {
 			user.Moderator = true
 		}
 	}
-	user.Nick = fields[1]
-	user.Idle, err = strconv.Atoi(fields[2])
+	user.Nick = getIcbString(fields[1])
+	user.Idle, err = strconv.Atoi(getIcbString(fields[2]))
 	if err != nil {
-		logger.LogErrorf("invalid idle time for user %s - value = %s", user.Nick, fields[2])
+		logger.LogErrorf("invalid idle time for user %s - value = %s", user.Nick, getIcbString(fields[2]))
 	}
 	// Unix time format
-	user.LoginTime , err = stringToTime(fields[4])
+	user.LoginTime , err = stringToTime(getIcbString(fields[4]))
 	if err != nil {
-		logger.LogErrorf("invalid login time for user %s - value = %s", user.Nick, fields[4])
+		logger.LogErrorf("invalid login time for user %s - value = %s", user.Nick, getIcbString(fields[4]))
 	}
-	user.Username = fields[5]
-	user.Hostname = fields[6]
-	user.RegStatus = fields[7]
+	user.Username = getIcbString(fields[5])
+	user.Hostname = getIcbString(fields[6])
+	user.RegStatus = getIcbString(fields[7])
 
 	return user, nil
 }
@@ -222,9 +229,10 @@ func parseIcbGenericCommandOutput(data string) {
 		logger.LogDebugf("[Group] fields = %s", fields)
 
 		group := &icbGroup{}
-		group.Name = fields[1]
+		group.Name = getIcbString(fields[1])
 		for i, v := range fields {
 			if v == "Topic:" {
+				// TODO check if not null-terminated string in Join
 				group.Topic = strings.Join(fields[i+1:], " ")
 			}
 		}
@@ -237,6 +245,7 @@ func parseIcbGenericCommandOutput(data string) {
 	} else if strings.HasPrefix(data, "Total:") {
 		// Output for 'Total:'
 		fields := strings.Fields(data)
+		// TODO check if not null-terminated string in Join
 		logger.LogDebugf("[Total] %s", strings.Join(fields[1:], " "))
 	} else {
 		// Generic command output
@@ -252,13 +261,13 @@ func parseIcbCommandOutput(fields []string) error {
 		return fmt.Errorf("invalid Command Output - no type defined")
 	}
 
-	switch string(fields[0]) {
+	switch string(getIcbString(fields[0])) {
 	// Generic command output
 	case "co":
-		parseIcbGenericCommandOutput(fields[1])
+		parseIcbGenericCommandOutput(getIcbString(fields[1]))
 	// Indicates end of output data from command
 	case "ec":
-		logger.LogDebugf("[End of output data from command] %s", fields[1])
+		logger.LogDebugf("[End of output data from command] %s", getIcbString(fields[1]))
 	// In a who listing, a line of output listing a user
 	case "wl":
 		// TODO Parse fields for users listing
@@ -267,8 +276,8 @@ func parseIcbCommandOutput(fields []string) error {
 		icbPrintUser(*user)
 	// In a who listing, a line of output listing a group
 	case "wg":
-		group_name := fields[1]
-		group_topic := fields[2]
+		group_name := getIcbString(fields[1])
+		group_topic := getIcbString(fields[2])
 		logger.LogDebugf("[Group] name = '%s' - topic = '%s'", group_name, group_topic)
 	case "wh":
 		logger.LogWarn("[deprecated] header for who listing output")
@@ -279,7 +288,7 @@ func parseIcbCommandOutput(fields []string) error {
 	case "c":
 		logger.LogWarn("[deprecated] list a single command")
 	default:
-		logger.LogWarnf("Unknown ICB command output '%s'", fields[0])
+		logger.LogWarnf("Unknown ICB command output '%s'", getIcbString(fields[0]))
 	}
 
 	return nil
@@ -302,21 +311,21 @@ func icbHandleType(conn net.Conn, msg icbPacket) error {
 	case icbPacketType["M_OPEN"]:
 		logger.LogDebugf("Received ICB Open Message")
 		fields := getIcbPacketFields(msg.Data)
-		nickname := fields[0]
-		content := fields[1]
+		nickname := getIcbString(fields[0])
+		content := getIcbString(fields[1])
 		logger.LogDebugf("Received ICB Open Message packet - nickname = %s - content = %s", nickname, content)
 	// Personal Message
 	case icbPacketType["M_PERSONAL"]:
 		logger.LogDebugf("Received ICB Personal Message")
 		fields := getIcbPacketFields(msg.Data)
-		nickname := fields[0]
-		content := fields[1]
+		nickname := getIcbString(fields[0])
+		content := getIcbString(fields[1])
 		logger.LogDebugf("Received ICB Personal Message packet - nickname = %s - content = %s", nickname, content)
 	// Status Message
 	case icbPacketType["M_STATUS"]:
 		fields := getIcbPacketFields(msg.Data)
-		category := fields[0]
-		content := fields[1]
+		category := getIcbString(fields[0])
+		content := getIcbString(fields[1])
 		logger.LogDebugf("Received ICB Status Message packet - category = %s - content = %s", category, content)
 		// TODO Parse Status Message: Status, Arrive, Depart, Sign-Off, Name, Topic, Pass, Boot
 	// Error Message
@@ -326,8 +335,8 @@ func icbHandleType(conn net.Conn, msg icbPacket) error {
 	// Important Message
 	case icbPacketType["M_IMPORTANT"]:
 		fields := getIcbPacketFields(msg.Data)
-		category := fields[0]
-		content := fields[1]
+		category := getIcbString(fields[0])
+		content := getIcbString(fields[1])
 		logger.LogDebugf("Received ICB Important Message packet - category = %s - content = %s", category, content)
 	// Exit
 	case icbPacketType["M_EXIT"]:
@@ -350,21 +359,21 @@ func icbHandleType(conn net.Conn, msg icbPacket) error {
 			return fmt.Errorf("M_PROTO message: no protocol level (required)")
 		}
 		// Protocol Level is int - Required
-		IcbProtocolLevel, err := strconv.Atoi(fields[0])
+		IcbProtocolLevel, err := strconv.Atoi(getIcbString(fields[0]))
 		if err != nil {
 			return fmt.Errorf("M_PROTO message: protocol level is not int - value = %s", fields[1])
 		}
 		logger.LogDebugf("ICB protocol level = %d", IcbProtocolLevel)
 		// Host ID optional
 		if len(fields) > 1 {
-			IcbHostId = fields[1]
+			IcbHostId = getIcbString(fields[1])
 		} else {
 			IcbHostId = "none"
 		}
 		logger.LogDebugf("ICB Host ID = %s", IcbHostId)
 		// Server ID optional
 		if len(fields) > 2 {
-			IcbServerId = fields[2]
+			IcbServerId = getIcbString(fields[2])
 		} else {
 			IcbServerId = "none"
 		}
@@ -375,7 +384,7 @@ func icbHandleType(conn net.Conn, msg icbPacket) error {
 	// Beep
 	case icbPacketType["M_BEEP"]:
 		fields := getIcbPacketFields(msg.Data)
-		nick := fields[0]
+		nick := getIcbString(fields[0])
 		logger.LogDebugf("Received ICB Beep packet - nick = %s", nick)
 	// Ping from server
 	case icbPacketType["M_PING"]:
