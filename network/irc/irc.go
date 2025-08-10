@@ -26,6 +26,7 @@ const (
 	IrcCommandPass
 	IrcCommandNick
 	IrcCommandUser
+	IrcCommandQuit
 	IrcCommandUnknown
 )
 
@@ -139,7 +140,7 @@ func IrcCommand(conn net.Conn, data string) (int, []string) {
 		return IrcCommandUser, []string{IrcUser, IrcRealname}
 	case "QUIT":
 		logger.LogDebugf("IRC - Received QUIT command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
-		return IrcCommandNop, nil
+		return IrcCommandQuit, nil
 	case "PING":
 		logger.LogDebugf("IRC - Received PING command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
 		IrcSendMsg(conn, "PONG %s", msg.Params[0])
