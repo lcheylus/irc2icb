@@ -189,29 +189,29 @@ func handleIRCConnection(conn net.Conn) {
 
 	// Get client address
 	clientAddr := conn.RemoteAddr().String()
-	logger.LogDebugf("Client connected from %s", clientAddr)
+	logger.LogDebugf("IRC - Client connected from %s", clientAddr)
 
 	// Send IRC notification to client
 	err := irc.IrcSendNotice(conn, "*** IRC client connected to %s proxy - client addr=%s", Name, clientAddr)
 	if err != nil {
-		logger.LogErrorf("Error writing to client: %s", err.Error())
+		logger.LogErrorf("IRC - Error writing to client: %s", err.Error())
 		return
 	} else {
-		logger.LogDebug("Send notification to IRC client")
+		logger.LogDebug("IRC - Send notification to client")
 	}
 
 	// Read from connection
 	scanner := bufio.NewScanner(conn)
 	for scanner.Scan() {
 		data := scanner.Text()
-		logger.LogDebugf("Received from IRC client [%s]: %s", clientAddr, data)
+		logger.LogDebugf("IRC - Received from client [%s]: %s", clientAddr, data)
 
 		// Handle IRC client commands
 		// ret, params := irc.IrcCommand(conn, data)
 		ret, _ := irc.IrcCommand(conn, data)
 		switch ret {
 		case irc.IrcCommandPass:
-			logger.LogDebugf("Password = %s", irc.IrcPassword)
+			logger.LogDebugf("IRC - password = '%s'", irc.IrcPassword)
 		case irc.IrcCommandNick:
 			// Send codes to complete IRC client registration
 			irc.IrcSendCode(conn, irc.IrcNick, irc.IrcReplyCodes["RPL_WELCOME"], ":Welcome to %s proxy %s", Name, irc.IrcNick)
@@ -227,7 +227,7 @@ func handleIRCConnection(conn net.Conn) {
 			irc.IrcSendCode(conn, irc.IrcNick, irc.IrcReplyCodes["RPL_ENDOFMOTD"], ":End of MOTD command")
 
 		case irc.IrcCommandUser:
-			logger.LogDebugf("IRC user = %s - realname = %s", irc.IrcUser, irc.IrcRealname)
+			logger.LogDebugf("IRC - user = %s - realname = '%s'", irc.IrcUser, irc.IrcRealname)
 
 		case irc.IrcCommandUnknown:
 		default:
@@ -240,7 +240,7 @@ func handleIRCConnection(conn net.Conn) {
 		}
 	}
 
-	logger.LogDebugf("Client disconnected: %s\n", clientAddr)
+	logger.LogDebugf("IRC - Client disconnected: %s\n", clientAddr)
 }
 
 // Process run as daemon
