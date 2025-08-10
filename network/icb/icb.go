@@ -65,13 +65,13 @@ type icbPacket struct {
 
 // icbUser represents a ICB User (datas parsed for Command packet, type='wl')
 type icbUser struct {
-	Moderator   bool
-	Nick        string
-	Idle        int
-	LoginTime   time.Time // Unix time_t format - Seconds since Jan. 1, 1970 GMT
-	Username    string
-	Hostname    string
-	RegStatus   string
+	Moderator bool
+	Nick      string
+	Idle      int
+	LoginTime time.Time // Unix time_t format - Seconds since Jan. 1, 1970 GMT
+	Username  string
+	Hostname  string
+	RegStatus string
 }
 
 // icbGroup represents a ICB Group (datas parsed for Command packet, type='co'
@@ -200,7 +200,7 @@ func icbGetUser(fields []string) (*icbUser, error) {
 		logger.LogErrorf("ICB - invalid idle time for user %s - value = %s", user.Nick, getIcbString(fields[2]))
 	}
 	// Unix time format
-	user.LoginTime , err = stringToTime(getIcbString(fields[4]))
+	user.LoginTime, err = stringToTime(getIcbString(fields[4]))
 	if err != nil {
 		logger.LogErrorf("ICB - invalid login time for user %s - value = %s", user.Nick, getIcbString(fields[4]))
 	}
