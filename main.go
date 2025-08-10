@@ -185,6 +185,9 @@ func handleSignals() {
 	os.Exit(0)
 }
 
+// Keep this function in main, instead of irc package
+// => prevents issue with "Cycle not allowed" between irc and icb packages
+//
 // Handle datas from TCP connection for IRC client
 // Inputs:
 // - conn (net.Conn): handle for IRC client connection
