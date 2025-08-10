@@ -230,7 +230,10 @@ func icbPrintUser(user icbUser) {
 }
 
 // Parse ICB Generic Command Output (type = 'co')
-func parseIcbGenericCommandOutput(data string) {
+// Inputs:
+// - data (string): data parsed from ICB Generic Command Output
+// - irc_conn (net.Conn): connection to IRC client
+func parseIcbGenericCommandOutput(data string, irc_conn net.Conn) {
 	if strings.HasPrefix(data, "Group:") {
 		// Sample of data for 'Group' output
 		// Group: zenomt   (rvl) Mod: zenomt        Topic: (None)
@@ -262,12 +265,23 @@ func parseIcbGenericCommandOutput(data string) {
 	} else {
 		// Generic command output
 		logger.LogDebugf("ICB - [Generic] '%s'", data)
-	}
 
+		// Send datas to IRC client via notification
+		err := irc.IrcSendNotice(irc_conn, "*** :%s", data)
+		if err != nil {
+			logger.LogErrorf("ICB - Error to send IRC notice message to client - %s", err.Error())
+			return
+		} else {
+			logger.LogDebug("ICB - Send IRC notice message for Generic Command output")
+		}
+	}
 }
 
 // Parse Command outputs (ICB message type = 'c')
-func parseIcbCommandOutput(fields []string) error {
+// Inputs:
+// - fields ([]string): fields from ICB Generic Command Output
+// - irc_conn (net.Conn): connection to IRC client
+func parseIcbCommandOutput(fields []string, irc_conn net.Conn) error {
 	// Required
 	if len(fields) == 0 {
 		return fmt.Errorf("invalid Command Output - no type defined")
@@ -276,7 +290,7 @@ func parseIcbCommandOutput(fields []string) error {
 	switch string(getIcbString(fields[0])) {
 	// Generic command output
 	case "co":
-		parseIcbGenericCommandOutput(getIcbString(fields[1]))
+		parseIcbGenericCommandOutput(getIcbString(fields[1]), irc_conn)
 	// Indicates end of output data from command
 	case "ec":
 		logger.LogDebugf("ICB - [End of output data from command] %s", getIcbString(fields[1]))
@@ -386,7 +400,7 @@ func icbHandleType(icb_conn net.Conn, msg icbPacket, irc_conn net.Conn) error {
 	case icbPacketType["M_CMDOUT"]:
 		logger.LogDebug("ICB - Received Command Output packet")
 		fields := getIcbPacketFields(msg.Data)
-		err := parseIcbCommandOutput(fields)
+		err := parseIcbCommandOutput(fields, irc_conn)
 		if err != nil {
 			logger.LogErrorf("ICB - invalid Command Output packet - err = %s", err.Error())
 		}
