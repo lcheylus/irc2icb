@@ -44,7 +44,7 @@ func getIcbPacketType(val string) string {
 		}
 	}
 
-	logger.LogWarnf("getIcbPacketType: unable to get type for value '%s'", val)
+	logger.LogWarnf("ICB - getIcbPacketType: unable to get type for value '%s'", val)
 	return ""
 }
 
@@ -82,6 +82,10 @@ type icbGroup struct {
 }
 
 // Loop to read packets from ICB server
+// Inputs:
+// - icb_conn (net.Conn): handle for connection to ICB server
+// - irc_conn (net.Conn): handle for connection to IRC client
+// TODO return code for errors
 func getIcbPackets(conn net.Conn) {
 	reader := bufio.NewReader(conn)
 
@@ -89,19 +93,20 @@ func getIcbPackets(conn net.Conn) {
 		msg, err := parseIcbPacket(reader)
 		if err != nil {
 			if err == io.EOF {
-				logger.LogInfo("Connection closed by ICB server")
+				logger.LogInfo("ICB - connection closed by server")
 				break
 			}
-			logger.LogDebugf("Read error from ICB server: %s", err.Error())
+			logger.LogErrorf("ICB - Read error from server - %s", err.Error())
 			break
 		}
 
-		logger.LogDebugf("Received ICB Message: Type=%s, Data='%s' (len = %d)", getIcbPacketType(string(msg.Type)), string(msg.Data), len(msg.Data))
+		logger.LogDebugf("ICB - Received Message: Type=%s, Data='%s' (len = %d)", getIcbPacketType(string(msg.Type)), string(msg.Data), len(msg.Data))
 		if len(msg.Data) > 1 {
 			fields := getIcbPacketFields(msg.Data)
-			logger.LogDebugf("ICB message fields = %s", strings.Join(fields, ","))
+			logger.LogDebugf("ICB - message fields = %s", strings.Join(fields, ","))
 		}
 
+		// TODO check errors
 		icbHandleType(conn, *msg)
 	}
 }
@@ -184,7 +189,7 @@ func icbGetUser(fields []string) (*icbUser, error) {
 	moderator := getIcbString(fields[0])
 	if moderator != " " {
 		if moderator != "m" && moderator != "*" {
-			logger.LogWarnf("invalid moderator status = '%s'", moderator)
+			logger.LogWarnf("ICB - invalid moderator status = '%s'", moderator)
 		} else {
 			user.Moderator = true
 		}
@@ -192,12 +197,12 @@ func icbGetUser(fields []string) (*icbUser, error) {
 	user.Nick = getIcbString(fields[1])
 	user.Idle, err = strconv.Atoi(getIcbString(fields[2]))
 	if err != nil {
-		logger.LogErrorf("invalid idle time for user %s - value = %s", user.Nick, getIcbString(fields[2]))
+		logger.LogErrorf("ICB - invalid idle time for user %s - value = %s", user.Nick, getIcbString(fields[2]))
 	}
 	// Unix time format
 	user.LoginTime , err = stringToTime(getIcbString(fields[4]))
 	if err != nil {
-		logger.LogErrorf("invalid login time for user %s - value = %s", user.Nick, getIcbString(fields[4]))
+		logger.LogErrorf("ICB - invalid login time for user %s - value = %s", user.Nick, getIcbString(fields[4]))
 	}
 	user.Username = getIcbString(fields[5])
 	user.Hostname = getIcbString(fields[6])
@@ -208,13 +213,13 @@ func icbGetUser(fields []string) (*icbUser, error) {
 
 // Print ICB User
 func icbPrintUser(user icbUser) {
-	logger.LogDebugf("[User] Moderator = %v", user.Moderator)
-	logger.LogDebugf("[User] Nick = %s", user.Nick)
-	logger.LogDebugf("[User] Idle = %d", user.Idle)
-	logger.LogDebugf("[User] LoginTime = %s", user.LoginTime.String())
-	logger.LogDebugf("[User] Username = %s", user.Username)
-	logger.LogDebugf("[User] Hostname = %s", user.Hostname)
-	logger.LogDebugf("[User] Registration status = '%s'", user.RegStatus)
+	logger.LogDebugf("ICB - [User] Moderator = %v", user.Moderator)
+	logger.LogDebugf("ICB - [User] Nick = %s", user.Nick)
+	logger.LogDebugf("ICB - [User] Idle = %d", user.Idle)
+	logger.LogDebugf("ICB - [User] LoginTime = %s", user.LoginTime.String())
+	logger.LogDebugf("ICB - [User] Username = %s", user.Username)
+	logger.LogDebugf("ICB - [User] Hostname = %s", user.Hostname)
+	logger.LogDebugf("ICB - [User] Registration status = '%s'", user.RegStatus)
 }
 
 // Parse ICB Generic Command Output (type = 'co')
@@ -224,9 +229,9 @@ func parseIcbGenericCommandOutput(data string) {
 		// Group: zenomt   (rvl) Mod: zenomt        Topic: (None)
 		fields := strings.Fields(data)
 		if len(fields) < 2 {
-			logger.LogWarn("invalid number of fields for 'Group'")
+			logger.LogWarn("ICB - invalid number of fields for 'Group'")
 		}
-		logger.LogDebugf("[Group] fields = %s", fields)
+		logger.LogDebugf("ICB - [Group] fields = %s", fields)
 
 		group := &icbGroup{}
 		group.Name = getIcbString(fields[1])
@@ -237,19 +242,19 @@ func parseIcbGenericCommandOutput(data string) {
 			}
 		}
 		if group.Topic == "" {
-			logger.LogWarnf("unable to find topic for group '%s'", group.Name)
+			logger.LogWarnf("ICB - unable to find topic for group '%s'", group.Name)
 		}
-		logger.LogDebugf("[Group] Name = %s", group.Name)
-		logger.LogDebugf("[Group] Topic = '%s'", group.Topic)
+		logger.LogDebugf("ICB - [Group] Name = %s", group.Name)
+		logger.LogDebugf("ICB - [Group] Topic = '%s'", group.Topic)
 
 	} else if strings.HasPrefix(data, "Total:") {
 		// Output for 'Total:'
 		fields := strings.Fields(data)
 		// TODO check if not null-terminated string in Join
-		logger.LogDebugf("[Total] %s", strings.Join(fields[1:], " "))
+		logger.LogDebugf("ICB - [Total] %s", strings.Join(fields[1:], " "))
 	} else {
 		// Generic command output
-		logger.LogDebugf("[Generic] '%s'", data)
+		logger.LogDebugf("ICB - [Generic] '%s'", data)
 	}
 
 }
@@ -267,39 +272,43 @@ func parseIcbCommandOutput(fields []string) error {
 		parseIcbGenericCommandOutput(getIcbString(fields[1]))
 	// Indicates end of output data from command
 	case "ec":
-		logger.LogDebugf("[End of output data from command] %s", getIcbString(fields[1]))
+		logger.LogDebugf("ICB - [End of output data from command] %s", getIcbString(fields[1]))
 	// In a who listing, a line of output listing a user
 	case "wl":
 		// TODO Parse fields for users listing
-		logger.LogDebugf("[User] fields = %v", fields[1:])
+		logger.LogDebugf("ICB - [User] fields = %v", fields[1:])
 		user, _ := icbGetUser(fields[1:])
 		icbPrintUser(*user)
 	// In a who listing, a line of output listing a group
 	case "wg":
 		group_name := getIcbString(fields[1])
 		group_topic := getIcbString(fields[2])
-		logger.LogDebugf("[Group] name = '%s' - topic = '%s'", group_name, group_topic)
+		logger.LogDebugf("ICB - [Group] name = '%s' - topic = '%s'", group_name, group_topic)
 	case "wh":
-		logger.LogWarn("[deprecated] header for who listing output")
+		logger.LogWarn("ICB - [deprecated] header for who listing output")
 	case "gh":
-		logger.LogWarn("[deprecated] group header for who listing output")
+		logger.LogWarn("ICB - [deprecated] group header for who listing output")
 	case "ch":
-		logger.LogWarn("[deprecated] list all the commands client handles internally")
+		logger.LogWarn("ICB - [deprecated] list all the commands client handles internally")
 	case "c":
-		logger.LogWarn("[deprecated] list a single command")
+		logger.LogWarn("ICB - [deprecated] list a single command")
 	default:
-		logger.LogWarnf("Unknown ICB command output '%s'", getIcbString(fields[0]))
+		logger.LogWarnf("ICB - Unknown ICB command output '%s'", getIcbString(fields[0]))
 	}
 
 	return nil
 }
 
 // Handle ICB packet according to type
+// Inputs:
+// - icb_conn (net.Conn): handle for connection to ICB server
+// - msg (icbPacket): ICB packet received
+// - irc_conn (net.Conn): handle for connection to IRC client
 func icbHandleType(conn net.Conn, msg icbPacket) error {
 	switch string(msg.Type) {
 	// Login
 	case icbPacketType["M_LOGINOK"]:
-		logger.LogDebugf("Received ICB Login OK packet from server")
+		logger.LogDebug("ICB - Received Login OK packet from server")
 
 		// TODO: send IRC messages for Registration + MOTD
 		IcbLoggedIn = true
@@ -309,51 +318,51 @@ func icbHandleType(conn net.Conn, msg icbPacket) error {
 
 	// Open Message
 	case icbPacketType["M_OPEN"]:
-		logger.LogDebugf("Received ICB Open Message")
+		logger.LogDebug("ICB - Received Open Message")
 		fields := getIcbPacketFields(msg.Data)
 		nickname := getIcbString(fields[0])
 		content := getIcbString(fields[1])
-		logger.LogDebugf("Received ICB Open Message packet - nickname = %s - content = %s", nickname, content)
+		logger.LogDebugf("ICB - Received Open Message packet - nickname = %s - content = %s", nickname, content)
 	// Personal Message
 	case icbPacketType["M_PERSONAL"]:
-		logger.LogDebugf("Received ICB Personal Message")
+		logger.LogDebug("Received ICB Personal Message")
 		fields := getIcbPacketFields(msg.Data)
 		nickname := getIcbString(fields[0])
 		content := getIcbString(fields[1])
-		logger.LogDebugf("Received ICB Personal Message packet - nickname = %s - content = %s", nickname, content)
+		logger.LogDebugf("ICB - Received Personal Message packet - nickname = %s - content = %s", nickname, content)
 	// Status Message
 	case icbPacketType["M_STATUS"]:
 		fields := getIcbPacketFields(msg.Data)
 		category := getIcbString(fields[0])
 		content := getIcbString(fields[1])
-		logger.LogDebugf("Received ICB Status Message packet - category = %s - content = %s", category, content)
+		logger.LogDebugf("ICB - Received Status Message packet - category = %s - content = %s", category, content)
 		// TODO Parse Status Message: Status, Arrive, Depart, Sign-Off, Name, Topic, Pass, Boot
 	// Error Message
 	case icbPacketType["M_ERROR"]:
 		fields := getIcbPacketFields(msg.Data)
-		logger.LogDebugf("Received ICB Error Message packet - err = %s", fields[0])
+		logger.LogDebugf("ICB - Received Error Message packet - err = %s", fields[0])
 	// Important Message
 	case icbPacketType["M_IMPORTANT"]:
 		fields := getIcbPacketFields(msg.Data)
 		category := getIcbString(fields[0])
 		content := getIcbString(fields[1])
-		logger.LogDebugf("Received ICB Important Message packet - category = %s - content = %s", category, content)
+		logger.LogDebugf("ICB - Received Important Message packet - category = %s - content = %s", category, content)
 	// Exit
 	case icbPacketType["M_EXIT"]:
-		logger.LogDebugf("Received ICB Exit packet")
+		logger.LogDebug("ICB - Received Exit packet")
 		IcbLoggedIn = false
 		// TODO Close connection and exit
 	// Command Output
 	case icbPacketType["M_CMDOUT"]:
-		logger.LogDebugf("Received ICB Command Output packet")
+		logger.LogDebug("ICB - Received Command Output packet")
 		fields := getIcbPacketFields(msg.Data)
 		err := parseIcbCommandOutput(fields)
 		if err != nil {
-			logger.LogErrorf("invalid ICB Command Output packet - err = %s", err.Error())
+			logger.LogErrorf("ICB - invalid Command Output packet - err = %s", err.Error())
 		}
 	// Protocol
 	case icbPacketType["M_PROTO"]:
-		logger.LogDebugf("Received ICB Protocol packet")
+		logger.LogDebug("ICB - Received Protocol packet")
 		fields := getIcbPacketFields(msg.Data)
 		if len(fields) == 0 {
 			return fmt.Errorf("M_PROTO message: no protocol level (required)")
@@ -363,14 +372,14 @@ func icbHandleType(conn net.Conn, msg icbPacket) error {
 		if err != nil {
 			return fmt.Errorf("M_PROTO message: protocol level is not int - value = %s", fields[1])
 		}
-		logger.LogDebugf("ICB protocol level = %d", IcbProtocolLevel)
+		logger.LogDebugf("ICB - Protocol Level = %d", IcbProtocolLevel)
 		// Host ID optional
 		if len(fields) > 1 {
 			IcbHostId = getIcbString(fields[1])
 		} else {
 			IcbHostId = "none"
 		}
-		logger.LogDebugf("ICB Host ID = %s", IcbHostId)
+		logger.LogDebugf("ICB - Host ID = %s", IcbHostId)
 		// Server ID optional
 		if len(fields) > 2 {
 			IcbServerId = getIcbString(fields[2])
@@ -378,20 +387,20 @@ func icbHandleType(conn net.Conn, msg icbPacket) error {
 			IcbServerId = "none"
 		}
 		IcbServerId = fields[2]
-		logger.LogDebugf("ICB Server ID = %s", IcbServerId)
+		logger.LogDebugf("ICB - Server ID = %s", IcbServerId)
 
 		icbSendLogin(conn, "Foxy")
 	// Beep
 	case icbPacketType["M_BEEP"]:
 		fields := getIcbPacketFields(msg.Data)
 		nick := getIcbString(fields[0])
-		logger.LogDebugf("Received ICB Beep packet - nick = %s", nick)
+		logger.LogDebugf("ICB - Received Beep packet - nick = %s", nick)
 	// Ping from server
 	case icbPacketType["M_PING"]:
-		logger.LogDebugf("Received ICB PING packet")
+		logger.LogDebug("ICB - Received PING packet")
 		fields := getIcbPacketFields(msg.Data)
 		if len(fields) > 1 {
-			logger.LogWarnf("Invalid ICB PING fields: %d received (max = 1) - fields = %s", len(fields), fields)
+			logger.LogWarnf("ICB - Invalid PING fields: %d received (max = 1) - fields = %s", len(fields), fields)
 		}
 		if len(fields) == 1 {
 			// case icbMessageId := fields[0]
@@ -399,17 +408,17 @@ func icbHandleType(conn net.Conn, msg icbPacket) error {
 		}
 	// Pong from server
 	case icbPacketType["M_PONG"]:
-		logger.LogDebugf("Received ICB PONG packet")
+		logger.LogDebug("ICB - Received PONG packet")
 		fields := getIcbPacketFields(msg.Data)
 		if len(fields) > 1 {
-			logger.LogWarnf("Invalid ICB PONG fields: %d received (max = 1) - fields = %s", len(fields), fields)
+			logger.LogWarnf("ICB - Invalid PONG fields: %d received (max = 1) - fields = %s", len(fields), fields)
 		}
 		if len(fields) == 1 {
 			// case icbMessageId := fields[0]
 			// TODO Reply + Message Id ?
 		}
 	default:
-		logger.LogWarnf("Unknown ICB command type '%s'", string(msg.Type))
+		logger.LogWarnf("ICB - Unknown command type '%s'", string(msg.Type))
 	}
 
 	return nil
@@ -418,7 +427,7 @@ func icbHandleType(conn net.Conn, msg icbPacket) error {
 // Add packet's length as prefix (necessary for ICB packet with format 'Ltd')
 func preprendPacketLength(packet []byte) []byte {
 	if len(packet) > 255 {
-		logger.LogWarnf("invalid length packet to add prefix - length=%d", len(packet))
+		logger.LogWarnf("ICB - invalid length packet to add prefix - length=%d", len(packet))
 	}
 
 	packet = append(packet, 0)
@@ -457,18 +466,18 @@ func icbSendLogin(conn net.Conn, nick string) error {
 
 	// Add packet length as prefix
 	if len(packet) > 255 {
-		logger.LogDebugf("ICB invalid login packet for nick = %s - length = %d > 255", nick, packet, len(packet)-1)
+		logger.LogDebugf("ICB - invalid Login packet for nick = %s - length = %d > 255", nick, packet, len(packet)-1)
 	}
 	packet = preprendPacketLength(packet)
 
-	logger.LogDebugf("ICB login packet for nick = %s - packet = %v - length = %d", nick, packet, len(packet)-1)
+	logger.LogDebugf("ICB - Login packet for nick = %s - packet = %v - length = %d", nick, packet, len(packet)-1)
 
 	_, err := conn.Write(packet)
 	if err != nil {
-		logger.LogDebugf("Error when sending ICB login message for nick = %s", nick)
+		logger.LogDebugf("ICB - Error when sending Login packet for nick = %s", nick)
 		// TODO how to handle error if unable to send message
 	} else {
-		logger.LogDebugf("Send ICB login packet to server - nick = %s", nick)
+		logger.LogDebugf("ICB - Send Login packet to server - nick = %s", nick)
 	}
 
 	return err
@@ -479,14 +488,14 @@ func icbSendCommand(conn net.Conn, args string) error {
 	packet := []byte(fmt.Sprintf("%sw\001%s", icbPacketType["M_COMMAND"], args))
 	packet = preprendPacketLength(packet)
 
-	logger.LogDebugf("ICB Command packet args = '%s' - packet = %v - length = %d", args, packet, len(packet)-1)
+	logger.LogDebugf("ICB - Command packet args = '%s' - packet = %v - length = %d", args, packet, len(packet)-1)
 
 	_, err := conn.Write(packet)
 	if err != nil {
-		logger.LogDebugf("Error when sending ICB Command packet")
+		logger.LogDebugf("ICB - Error when sending Command packet")
 		// TODO how to handle error if unable to send message
 	} else {
-		logger.LogDebugf("Send ICB Command packet to server")
+		logger.LogDebugf("ICB - Send Command packet to server")
 	}
 
 	return err
@@ -510,7 +519,7 @@ func timerCommand(conn net.Conn) {
 func timerPing(conn net.Conn) {
 	for {
 		time.Sleep(5 * time.Second)
-		logger.LogDebugf("Send Ping packet to server")
+		logger.LogDebugf("ICB - Send Ping packet to server")
 		icbSendPing(conn)
 	}
 }
@@ -520,56 +529,47 @@ func icbSendPing(conn net.Conn) error {
 	packet := []byte(icbPacketType["M_PING"])
 	packet = preprendPacketLength(packet)
 
-	logger.LogDebugf("ICB Ping packet - packet = %v - length = %d", packet, len(packet)-1)
+	logger.LogDebugf("ICB - Ping packet - packet = %v - length = %d", packet, len(packet)-1)
 
 	_, err := conn.Write(packet)
 	if err != nil {
-		logger.LogDebugf("Error when sending ICB Ping packet")
+		logger.LogDebugf("ICB - Error when sending Ping packet")
 		// TODO how to handle error if unable to send message
 	} else {
-		logger.LogDebugf("Send ICB Ping packet to server")
+		logger.LogDebugf("ICB - Send Ping packet to server")
 	}
 
 	return err
 }
 
 // TCP connection for ICB client
+// Inputs:
+// - server (string); address for ICB server
+// - port (int): port for ICB server
+// - irc_conn (net.Conn): handle for connection to IRC client
+// func IcbConnect(server string, port int, irc_conn net.Conn) net.Conn {
 func IcbConnect(server string, port int) {
 	addr := fmt.Sprintf("%s:%d", server, port)
 	IcbLoggedIn = false
 
-	logger.LogDebugf("Trying to connect to ICB server [%s]", addr)
+	logger.LogDebugf("ICB - Trying to connect to server [%s]", addr)
 
 	// Connect to the server
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
-		logger.LogErrorf("Unable to connect to ICB server [%s]: err = %s", addr, err.Error())
+		logger.LogErrorf("ICB - Unable to connect to server [%s]: err = %s", addr, err.Error())
 		return
 	}
 	defer conn.Close()
 
 	ip := strings.Split(conn.RemoteAddr().String(), ":")[0]
-	logger.LogInfof("Connected to ICB server %s (%s) port %d", server, ip, port)
+	logger.LogInfof("ICB - Connected to server %s (%s) port %d", server, ip, port)
 
 	// Loop to read ICB packets from server
-	logger.LogInfo("Start loop to read packets from ICB server")
+	logger.LogInfo("ICB - Start loop to read packets from server")
 	go getIcbPackets(conn)
-
-	// logger.LogInfo("Start loop to send Ping packets to ICB server")
-	// go timerPing(conn)
 
 	// Loop => not exit program
 	for {
 	}
-
-	// Read commands from stdin and send to server
-	/* scanner := bufio.NewScanner(os.Stdin)
-	for scanner.Scan() {
-		text := scanner.Text()
-		if text == "/quit" {
-			logger.LogInfo("Received /quit command")
-			os.Exit(0)
-		}
-		// TODO Send command to server for disconnection
-	} */
 }
