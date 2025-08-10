@@ -244,7 +244,13 @@ func handleIRCConnection(conn net.Conn) {
 }
 
 // Process run as daemon
-func runIRCDaemon(pathname string, addr string, port int) {
+// Inputs:
+// - pathname: path for logs file
+// - listen_addr (string): local address for client connection
+// - listen_port (int): local port for client connection
+// - server_addr (string): address for ICB server
+// - server_port (int): port for ICB server
+func runIRCDaemon(pathname string, listen_addr string, listen_port int, server_addr string, server_port int) {
 	if pathname != "" {
 		file, _ := os.OpenFile(pathname, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 		defer file.Close()
@@ -258,14 +264,20 @@ func runIRCDaemon(pathname string, addr string, port int) {
 
 	logger.LogInfof("Process running - PID = %d", os.Getpid())
 
+	// Resolve address for TCP listener
+	addr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%d", listen_addr, listen_port))
+	if err != nil {
+		logger.LogFatalf("unable to resolve TCP address - err = %s", err.Error())
+	}
+
 	// Server listen on TCP
-	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", addr, port))
+	listener, err := net.ListenTCP("tcp", addr)
 	if err != nil {
 		logger.LogFatalf("unable to start TCP server - err = %s", err.Error())
 	}
 	defer listener.Close()
 
-	logger.LogInfof("TCP server listening on addr %s", fmt.Sprintf("%s:%d", addr, port))
+	logger.LogInfof("TCP server listening on addr %s", fmt.Sprintf("%s:%d", listen_addr, listen_port))
 
 	for {
 		// Accept new connections
@@ -354,7 +366,7 @@ func main() {
 	go handleSignals()
 
 	// Run TCP daemon to handle IRC connection
-	runIRCDaemon(config.LogFile, config.ListenAddr, config.ListenPort)
+	runIRCDaemon(config.LogFile, config.ListenAddr, config.ListenPort, config.Server, config.ServerPort)
 
 	os.Exit(0)
 }
