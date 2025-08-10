@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	irc "irc2icb/network/irc"
 	logger "irc2icb/utils"
 )
 
@@ -91,28 +92,28 @@ type icbGroup struct {
 // - icb_conn (net.Conn): handle for connection to ICB server
 // - irc_conn (net.Conn): handle for connection to IRC client
 // TODO return code for errors
-func getIcbPackets(conn net.Conn) {
-	reader := bufio.NewReader(conn)
+func GetIcbPackets(icb_conn net.Conn, irc_conn net.Conn) {
+	reader := bufio.NewReader(icb_conn)
 
 	for {
 		msg, err := parseIcbPacket(reader)
 		if err != nil {
 			if err == io.EOF {
-				logger.LogInfo("ICB - connection closed by server")
+				logger.LogInfo("ICB - connection closed by ICB server")
 				break
 			}
-			logger.LogErrorf("ICB - Read error from server - %s", err.Error())
+			logger.LogErrorf("ICB - Read error from ICB server - %s", err.Error())
 			break
 		}
 
-		logger.LogDebugf("ICB - Received Message: Type=%s, Data='%s' (len = %d)", getIcbPacketType(string(msg.Type)), string(msg.Data), len(msg.Data))
+		logger.LogDebugf("ICB - Received ICB Message: Type=%s, Data='%s' (len = %d)", getIcbPacketType(string(msg.Type)), string(msg.Data), len(msg.Data))
 		if len(msg.Data) > 1 {
 			fields := getIcbPacketFields(msg.Data)
-			logger.LogDebugf("ICB - message fields = %s", strings.Join(fields, ","))
+			logger.LogDebugf("ICB - ICB message fields = %s", strings.Join(fields, ","))
 		}
 
 		// TODO check errors
-		icbHandleType(conn, *msg)
+		icbHandleType(icb_conn, *msg, irc_conn)
 	}
 }
 
@@ -309,17 +310,42 @@ func parseIcbCommandOutput(fields []string) error {
 // - icb_conn (net.Conn): handle for connection to ICB server
 // - msg (icbPacket): ICB packet received
 // - irc_conn (net.Conn): handle for connection to IRC client
-func icbHandleType(conn net.Conn, msg icbPacket) error {
+func icbHandleType(icb_conn net.Conn, msg icbPacket, irc_conn net.Conn) error {
 	switch string(msg.Type) {
 	// Login
 	case icbPacketType["M_LOGINOK"]:
 		logger.LogDebug("ICB - Received Login OK packet from server")
 
-		// TODO: send IRC messages for Registration + MOTD
+		// Send codes to complete IRC client registration
+		logger.LogDebug("ICB - Send messages to IRC client for registration")
+		irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_WELCOME"], ":Welcome to %s proxy %s", "irc2icb", irc.IrcNick)
+
+		logger.LogWarnf("ICB - IcbProtocolLevel = %d", icbProtocolInfo.ProtocolLevel)
+		logger.LogWarnf("ICB - IcbHostId = %s", icbProtocolInfo.HostId)
+		logger.LogWarnf("ICB - IcbServerId = %s", icbProtocolInfo.ServerId)
+		logger.LogWarnf("ICB - (byte slice) IcbServerId = %q", []byte(icbProtocolInfo.ServerId))
+
+		// Your host is default.icb.net running ICB Server v1.2c protocol 1
+		irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_YOURHOST"], ":Your host is %s running %s protocol %d", icbProtocolInfo.HostId, icbProtocolInfo.ServerId, icbProtocolInfo.ProtocolLevel)
+
+		irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_CREATED"], ":This server was created recently")
+		// irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_MYINFO"], "localhost %s-%s", Name, Version)
+		irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_MYINFO"], "localhost %s-%s", "irc2icb", "devel")
+
+		// Send MOTD (message of the day)
+		irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_MOTDSTART"], ":- %s Message of the day - ", "localhost")
+		irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_MOTD"], ":- Proxy for IRC client to ICB network")
+		irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_MOTD"], ":- Proxy run using irc2icb software")
+		irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_MOTD"], ":- Repository: https://github.com/lcheylus/irc2icb/")
+		// ICB server: ICB Server v1.2c
+		irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_MOTD"], ":- ICB server: %s", icbProtocolInfo.ServerId)
+		irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_ENDOFMOTD"], ":End of MOTD command")
+
+		logger.LogInfo("ICB - Logged to server for nick Foxy")
 		IcbLoggedIn = true
 
 		// Test: send ICB Command
-		go timerCommand(conn)
+		// go timerCommand(conn)
 
 	// Open Message
 	case icbPacketType["M_OPEN"]:
@@ -394,9 +420,8 @@ func icbHandleType(conn net.Conn, msg icbPacket) error {
 		logger.LogDebugf("ICB - ICB protocol level = %d", icbProtocolInfo.ProtocolLevel)
 		logger.LogDebugf("ICB - ICB Host ID = %s", icbProtocolInfo.HostId)
 		logger.LogDebugf("ICB - ICB Server ID = %s", icbProtocolInfo.ServerId)
-		logger.LogDebug("ICB - Received Protocol packet")
 
-		icbSendLogin(conn, "Foxy")
+		icbSendLogin(icb_conn, "Foxy")
 	// Beep
 	case icbPacketType["M_BEEP"]:
 		fields := getIcbPacketFields(msg.Data)
@@ -555,28 +580,19 @@ func icbSendPing(conn net.Conn) error {
 // - port (int): port for ICB server
 // - irc_conn (net.Conn): handle for connection to IRC client
 // func IcbConnect(server string, port int, irc_conn net.Conn) net.Conn {
-func IcbConnect(server string, port int) {
+func IcbConnect(server string, port int) net.Conn {
 	addr := fmt.Sprintf("%s:%d", server, port)
 	IcbLoggedIn = false
 
-	logger.LogDebugf("ICB - Trying to connect to server [%s]", addr)
+	logger.LogDebugf("ICB - Trying to connect to ICB server [%s]", addr)
 
 	// Connect to the server
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
-		logger.LogErrorf("ICB - Unable to connect to server [%s]: err = %s", addr, err.Error())
-		return
+		logger.LogErrorf("ICB - Unable to connect to ICB server [%s]: err = %s", addr, err.Error())
+		return nil
 	}
-	defer conn.Close()
+	// defer icb_conn.Close()
 
-	ip := strings.Split(conn.RemoteAddr().String(), ":")[0]
-	logger.LogInfof("ICB - Connected to server %s (%s) port %d", server, ip, port)
-
-	// Loop to read ICB packets from server
-	logger.LogInfo("ICB - Start loop to read packets from server")
-	go getIcbPackets(conn)
-
-	// Loop => not exit program
-	for {
-	}
+	return conn
 }

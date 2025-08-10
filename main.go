@@ -10,11 +10,13 @@ import (
 	"os/exec"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 
 	logger "irc2icb/utils"
 	optparse "irc2icb/utils"
 
+	icb "irc2icb/network/icb"
 	irc "irc2icb/network/irc"
 
 	"github.com/BurntSushi/toml"
@@ -184,7 +186,11 @@ func handleSignals() {
 }
 
 // Handle datas from TCP connection for IRC client
-func handleIRCConnection(conn net.Conn) {
+// Inputs:
+// - conn (net.Conn): handle for IRC client connection
+// - server_addr (string): address for ICB server
+// - server_port (int): port for ICB server
+func handleIRCConnection(conn net.Conn, server_addr string, server_port int) {
 	defer conn.Close()
 
 	// Get client address
@@ -213,22 +219,18 @@ func handleIRCConnection(conn net.Conn) {
 		case irc.IrcCommandPass:
 			logger.LogDebugf("IRC - password = '%s'", irc.IrcPassword)
 		case irc.IrcCommandNick:
-			// Send codes to complete IRC client registration
-			irc.IrcSendCode(conn, irc.IrcNick, irc.IrcReplyCodes["RPL_WELCOME"], ":Welcome to %s proxy %s", Name, irc.IrcNick)
-			irc.IrcSendCode(conn, irc.IrcNick, irc.IrcReplyCodes["RPL_YOURHOST"], ":Your host is %s, version %s", Name, Version)
-			irc.IrcSendCode(conn, irc.IrcNick, irc.IrcReplyCodes["RPL_CREATED"], ":This server was created recently")
-			irc.IrcSendCode(conn, irc.IrcNick, irc.IrcReplyCodes["RPL_MYINFO"], "localhost %s-%s", Name, Version)
+			// TODO Handle case if already connected to ICB server
+			// Connection to ICB server
+			icb_conn := icb.IcbConnect(server_addr, server_port)
 
-			// Send MOTD (message of the day)
-			irc.IrcSendCode(conn, irc.IrcNick, irc.IrcReplyCodes["RPL_MOTDSTART"], ":- %s Message of the day - ", "localhost")
-			irc.IrcSendCode(conn, irc.IrcNick, irc.IrcReplyCodes["RPL_MOTD"], ":- Proxy for IRC client to ICB network")
-			irc.IrcSendCode(conn, irc.IrcNick, irc.IrcReplyCodes["RPL_MOTD"], ":- Proxy run using irc2icb software")
-			irc.IrcSendCode(conn, irc.IrcNick, irc.IrcReplyCodes["RPL_MOTD"], ":- Repository: https://github.com/lcheylus/irc2icb/")
-			irc.IrcSendCode(conn, irc.IrcNick, irc.IrcReplyCodes["RPL_ENDOFMOTD"], ":End of MOTD command")
+			ip := strings.Split(icb_conn.RemoteAddr().String(), ":")[0]
+			logger.LogInfof("ICB - Connected to server %s (%s) port %d", server_addr, ip, server_port)
 
+			// Loop to read ICB packets from server
+			logger.LogInfo("ICB - Start loop to read packets from server")
+			go icb.GetIcbPackets(icb_conn, conn)
 		case irc.IrcCommandUser:
 			logger.LogDebugf("IRC - user = %s - realname = '%s'", irc.IrcUser, irc.IrcRealname)
-
 		case irc.IrcCommandUnknown:
 		default:
 			/* if err != nil {
@@ -283,10 +285,10 @@ func runIRCDaemon(pathname string, listen_addr string, listen_port int, server_a
 		// Accept new connections
 		conn, err := listener.Accept()
 		if err != nil {
-			logger.LogFatalf("Error accepting connection:", err)
+			logger.LogFatalf("Error accepting connection - %s", err.Error())
 			continue
 		}
-		go handleIRCConnection(conn)
+		go handleIRCConnection(conn, server_addr, server_port)
 	}
 }
 
