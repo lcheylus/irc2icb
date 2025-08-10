@@ -34,6 +34,20 @@ var icbPacketType = map[string]string{
 	"M_NOOP":      "n", // no-op packet
 }
 
+// Type to handle variable parsed from ICB Protocol packet
+type icbProtocolInfos struct {
+	ProtocolLevel int
+	HostId        string
+	ServerId      string
+}
+
+// Variables for ICB connection
+var (
+	IcbLoggedIn bool // ICB logged in status
+
+	icbProtocolInfo icbProtocolInfos
+)
+
 // Get ICB packet type (M_xxx)
 // Input: value (string with 1 byte) for type
 // Output: type (M_xxx)
@@ -47,15 +61,6 @@ func getIcbPacketType(val string) string {
 	logger.LogWarnf("ICB - getIcbPacketType: unable to get type for value '%s'", val)
 	return ""
 }
-
-// Variables for ICB connection
-var (
-	IcbProtocolLevel int
-	IcbHostId        string
-	IcbServerId      string
-
-	IcbLoggedIn bool // ICB logged in status
-)
 
 // icbPacket represents a parsed ICB packet
 type icbPacket struct {
@@ -368,26 +373,28 @@ func icbHandleType(conn net.Conn, msg icbPacket) error {
 			return fmt.Errorf("M_PROTO message: no protocol level (required)")
 		}
 		// Protocol Level is int - Required
-		IcbProtocolLevel, err := strconv.Atoi(getIcbString(fields[0]))
+		protocol_level, err := strconv.Atoi(getIcbString(fields[0]))
 		if err != nil {
-			return fmt.Errorf("M_PROTO message: protocol level is not int - value = %s", fields[1])
+			return fmt.Errorf("M_PROTO message: protocol level is not int - value = %s", getIcbString(fields[0]))
 		}
-		logger.LogDebugf("ICB - Protocol Level = %d", IcbProtocolLevel)
+		icbProtocolInfo.ProtocolLevel = protocol_level
 		// Host ID optional
 		if len(fields) > 1 {
-			IcbHostId = getIcbString(fields[1])
+			icbProtocolInfo.HostId = getIcbString(fields[1])
 		} else {
-			IcbHostId = "none"
+			icbProtocolInfo.HostId = "none"
 		}
-		logger.LogDebugf("ICB - Host ID = %s", IcbHostId)
 		// Server ID optional
 		if len(fields) > 2 {
-			IcbServerId = getIcbString(fields[2])
+			icbProtocolInfo.ServerId = getIcbString(fields[2])
 		} else {
-			IcbServerId = "none"
+			icbProtocolInfo.ServerId = "none"
 		}
-		IcbServerId = fields[2]
-		logger.LogDebugf("ICB - Server ID = %s", IcbServerId)
+
+		logger.LogDebugf("ICB - ICB protocol level = %d", icbProtocolInfo.ProtocolLevel)
+		logger.LogDebugf("ICB - ICB Host ID = %s", icbProtocolInfo.HostId)
+		logger.LogDebugf("ICB - ICB Server ID = %s", icbProtocolInfo.ServerId)
+		logger.LogDebug("ICB - Received Protocol packet")
 
 		icbSendLogin(conn, "Foxy")
 	// Beep
