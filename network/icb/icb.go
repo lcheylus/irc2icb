@@ -292,7 +292,7 @@ func parseIcbGenericCommandOutput(data string, irc_conn net.Conn) {
 	}
 }
 
-// Parse Command outputs (ICB message type = 'c')
+// Parse Command outputs (ICB packet type = 'c')
 // Inputs:
 // - fields ([]string): fields from ICB Generic Command Output
 // - irc_conn (net.Conn): connection to IRC client
@@ -329,7 +329,31 @@ func parseIcbCommandOutput(fields []string, irc_conn net.Conn) error {
 	case "c":
 		logger.LogWarn("ICB - [deprecated] list a single command")
 	default:
-		logger.LogWarnf("ICB - Unknown ICB command output '%s'", getIcbString(fields[0]))
+		logger.LogWarnf("ICB - Unknown Command output '%s'", getIcbString(fields[0]))
+	}
+
+	return nil
+}
+
+// Parse Status Message (ICB packet type = 'd')
+// Inputs:
+// - category (string): category for the message
+// - content (string): content of the message
+// - irc_conn (net.Conn): connection to IRC client
+func parseIcbStatus(category string, content string, irc_conn net.Conn) error {
+	if len(category) == 0 {
+		return fmt.Errorf("invalid Status message - no category defined")
+	}
+	switch category {
+	case "Status":
+		// TODO Handle message 'You are now in group slac' => send IRC PART
+		irc.IrcSendNotice(irc_conn, "*** :ICB Status Message: %s", content)
+		return nil
+	case "No-Pass":
+		irc.IrcSendNotice(irc_conn, "*** :ICB Status Message: %s", content)
+		return nil
+	default:
+		logger.LogWarnf("ICB - Unknown Status message category '%s'", category)
 	}
 
 	return nil
@@ -396,6 +420,10 @@ func icbHandleType(icb_conn net.Conn, msg icbPacket, irc_conn net.Conn) error {
 		content := getIcbString(fields[1])
 		logger.LogDebugf("ICB - Received Status Message packet - category = %s - content = %s", category, content)
 		// TODO Parse Status Message: Status, Arrive, Depart, Sign-Off, Name, Topic, Pass, Boot
+		err := parseIcbStatus(category, content, irc_conn)
+		if err != nil {
+			logger.LogErrorf("ICB - invalid Status Message packet - err = %s", err.Error())
+		}
 	// Error Message
 	case icbPacketType["M_ERROR"]:
 		fields := getIcbPacketFields(msg.Data)
