@@ -186,18 +186,18 @@ func handleSignals() {
 //
 // Handle datas from TCP connection for IRC client
 // Inputs:
-// - conn (net.Conn): handle for IRC client connection
+// - irc_conn (net.Conn): handle for IRC client connection
 // - server_addr (string): address for ICB server
 // - server_port (int): port for ICB server
-func handleIRCConnection(conn net.Conn, server_addr string, server_port int) {
-	defer conn.Close()
+func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int) {
+	defer irc_conn.Close()
 
 	// Get client address
-	clientAddr := conn.RemoteAddr().String()
+	clientAddr := irc_conn.RemoteAddr().String()
 	logger.LogDebugf("IRC - Client connected from %s", clientAddr)
 
 	// Send IRC notification to client
-	err := irc.IrcSendNotice(conn, "*** IRC client connected to %s proxy - client addr=%s", version.Name, clientAddr)
+	err := irc.IrcSendNotice(irc_conn, "*** IRC client connected to %s proxy - client addr=%s", version.Name, clientAddr)
 	if err != nil {
 		logger.LogErrorf("IRC - Error writing to client: %s", err.Error())
 		return
@@ -206,14 +206,14 @@ func handleIRCConnection(conn net.Conn, server_addr string, server_port int) {
 	}
 
 	// Read from connection
-	scanner := bufio.NewScanner(conn)
+	scanner := bufio.NewScanner(irc_conn)
 	for scanner.Scan() {
 		data := scanner.Text()
 		logger.LogDebugf("IRC - Received from client [%s]: %s", clientAddr, data)
 
 		// Handle IRC client commands
 		// ret, params := irc.IrcCommand(conn, data)
-		ret, _ := irc.IrcCommand(conn, data)
+		ret, _ := irc.IrcCommand(irc_conn, data)
 		switch ret {
 		case irc.IrcCommandPass:
 			logger.LogDebugf("IRC - password = '%s'", irc.IrcPassword)
@@ -225,9 +225,7 @@ func handleIRCConnection(conn net.Conn, server_addr string, server_port int) {
 			ip := strings.Split(icb_conn.RemoteAddr().String(), ":")[0]
 			logger.LogInfof("ICB - Connected to server %s (%s) port %d", server_addr, ip, server_port)
 
-			// Loop to read ICB packets from server
-			logger.LogInfo("ICB - Start loop to read packets from server")
-			go icb.GetIcbPackets(icb_conn, conn)
+			go icb.GetIcbPackets(icb_conn, irc_conn)
 		case irc.IrcCommandUser:
 			logger.LogDebugf("IRC - user = %s - realname = '%s'", irc.IrcUser, irc.IrcRealname)
 		case irc.IrcCommandUnknown:
@@ -241,7 +239,6 @@ func handleIRCConnection(conn net.Conn, server_addr string, server_port int) {
 		}
 	}
 
-	logger.LogDebugf("IRC - Client disconnected: %s\n", clientAddr)
 }
 
 // Process run as daemon
