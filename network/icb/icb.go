@@ -36,6 +36,15 @@ var icbPacketType = map[string]string{
 	"M_NOOP":      "n", // no-op packet
 }
 
+// Enum with ICB mode to reply to IRC commands
+const (
+	IcbModeNone = iota
+	IcbModeList
+	IcbModeNames
+	IcbModeWhois
+	IcbModeWho
+)
+
 // Type to handle variable parsed from ICB Protocol packet
 type icbProtocolInfos struct {
 	ProtocolLevel int
@@ -48,6 +57,8 @@ var (
 	IcbLoggedIn      bool            // ICB logged in status
 	IcbGroups        []IcbGroup      // List of ICB groups
 	IcbGroupsChannel chan []IcbGroup // Channel to send groups list
+
+	IcbMode int = IcbModeNone // ICB mode to reply to IRC commands
 
 	icbProtocolInfo icbProtocolInfos
 )
@@ -300,8 +311,10 @@ func parseIcbGenericCommandOutput(data string, irc_conn net.Conn) {
 		// TODO check if not null-terminated string in Join
 		logger.LogDebugf("ICB - [Total] %s", strings.Join(fields[1:], " "))
 
-		// Send groups list via channel
-		IcbGroupsChannel <- IcbGroups
+		// Send groups list via channel ofr IRC LIST command
+		if IcbMode == IcbModeList {
+			IcbGroupsChannel <- IcbGroups
+		}
 
 	} else {
 		// Generic command output
