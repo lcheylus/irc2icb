@@ -45,8 +45,9 @@ type icbProtocolInfos struct {
 
 // Variables for ICB connection
 var (
-	IcbLoggedIn bool       // ICB logged in status
-	IcbGroups   []IcbGroup // List of ICB groups
+	IcbLoggedIn      bool          // ICB logged in status
+	IcbGroups        []IcbGroup    // List of ICB groups
+	IcbGroupsChannel chan struct{} // Channel to signal that groups list is populated
 
 	icbProtocolInfo icbProtocolInfos
 )
@@ -297,6 +298,10 @@ func parseIcbGenericCommandOutput(data string, irc_conn net.Conn) {
 		fields := strings.Fields(data)
 		// TODO check if not null-terminated string in Join
 		logger.LogDebugf("ICB - [Total] %s", strings.Join(fields[1:], " "))
+
+		// Send signal for groups list
+		close(IcbGroupsChannel)
+
 	} else {
 		// Generic command output
 		logger.LogDebugf("ICB - [Generic] '%s'", data)
