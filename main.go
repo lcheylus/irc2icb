@@ -243,8 +243,7 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 
 			// Send ICB command to list groups
 			logger.LogDebugf("IRC - LIST command => send ICB command to list groups")
-			icb.IcbMode = icb.IcbModeList
-			icb.IcbSendCommand(icb_conn, "-g")
+			icb.IcbSendList(icb_conn)
 
 			// Receive ICB groups list via channel
 			icb_groups := <-icb.IcbGroupsChannel

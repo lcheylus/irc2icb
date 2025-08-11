@@ -311,7 +311,7 @@ func parseIcbGenericCommandOutput(data string, irc_conn net.Conn) {
 		// TODO check if not null-terminated string in Join
 		logger.LogDebugf("ICB - [Total] %s", strings.Join(fields[1:], " "))
 
-		// Send groups list via channel ofr IRC LIST command
+		// Send groups list via channel for IRC LIST command
 		if IcbMode == IcbModeList {
 			IcbGroupsChannel <- IcbGroups
 		}
@@ -605,6 +605,14 @@ func icbSendLogin(conn net.Conn, nick string) error {
 	} else {
 		logger.LogDebugf("ICB - Send Login packet to server - nick = %s", nick)
 	}
+
+	return err
+}
+
+// Send ICB command to get groups
+func IcbSendList(conn net.Conn) error {
+	IcbMode = IcbModeList
+	err := IcbSendCommand(conn, "-g")
 
 	return err
 }
