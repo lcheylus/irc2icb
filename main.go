@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
 	logger "irc2icb/utils"
 	optparse "irc2icb/utils"
@@ -190,6 +191,7 @@ func handleSignals() {
 // - server_addr (string): address for ICB server
 // - server_port (int): port for ICB server
 func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int) {
+	var icb_conn net.Conn
 	var icb_ch chan struct{}
 
 	defer irc_conn.Close()
@@ -222,7 +224,7 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 		case irc.IrcCommandNick:
 			// TODO Handle case if already connected to ICB server
 			// Connection to ICB server
-			icb_conn := icb.IcbConnect(server_addr, server_port)
+			icb_conn = icb.IcbConnect(server_addr, server_port)
 			defer icb_conn.Close()
 
 			ip := strings.Split(icb_conn.RemoteAddr().String(), ":")[0]
@@ -236,6 +238,20 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			go icb.GetIcbPackets(icb_conn, irc_conn, icb_ch)
 		case irc.IrcCommandUser:
 			logger.LogDebugf("IRC - user = %s - realname = '%s'", irc.IrcUser, irc.IrcRealname)
+		case irc.IrcCommandList:
+			logger.LogDebugf("IRC - LIST command => send ICB command to list groups")
+			// Send ICB command to list groups
+			icb.IcbSendCommand(icb_conn, "-g")
+			// Wait to get groups from ICB server
+			time.Sleep(2 * time.Second)
+			for _, group := range icb.IcbGroups {
+				logger.LogInfof("ICB Group: Name = %s - Topic = '%s'", group.Name, group.Topic)
+				// TODO Add count in reply => how many clients are joined to that channel.
+				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_LIST"], "#%s 42 :%s", group.Name, group.Topic)
+			}
+			irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_LISTEND"], ":End of /LIST")
+			logger.LogDebugf("IRC - Send reply to LIST command - nick = %s", irc.IrcNick)
+
 		case irc.IrcCommandQuit:
 			logger.LogInfof("IRC - Client disconnected: %s\n", clientAddr)
 			close(icb_ch)

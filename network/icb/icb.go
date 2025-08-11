@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"irc2icb/network/irc"
+	irc "irc2icb/network/irc"
 	logger "irc2icb/utils"
 	"irc2icb/version"
 )
@@ -45,7 +45,8 @@ type icbProtocolInfos struct {
 
 // Variables for ICB connection
 var (
-	IcbLoggedIn bool // ICB logged in status
+	IcbLoggedIn bool       // ICB logged in status
+	IcbGroups   []IcbGroup // List of ICB groups
 
 	icbProtocolInfo icbProtocolInfos
 )
@@ -81,9 +82,9 @@ type icbUser struct {
 	RegStatus string
 }
 
-// icbGroup represents a ICB Group (datas parsed for Command packet, type='co'
+// IcbGroup represents a ICB Group (datas parsed for Command packet, type='co'
 // with header 'Group:')
-type icbGroup struct {
+type IcbGroup struct {
 	Name  string
 	Topic string
 }
@@ -189,6 +190,17 @@ func getIcbPacketFields(raw []byte) []string {
 	return fields
 }
 
+// Check if a group is not already in groups list
+// Return true is group already in groups list, false if not
+func icbGroupIsPresent(group IcbGroup) bool {
+	for _, grp := range IcbGroups {
+		if grp.Name == group.Name {
+			return true
+		}
+	}
+	return false
+}
+
 // Convert Unix time as string (seconds since Jan. 1, 1970 GMT) to time.Time
 func stringToTime(s string) (time.Time, error) {
 	sec, err := strconv.ParseInt(s, 10, 64)
@@ -258,7 +270,7 @@ func parseIcbGenericCommandOutput(data string, irc_conn net.Conn) {
 		}
 		logger.LogDebugf("ICB - [Group] fields = %s", fields)
 
-		group := &icbGroup{}
+		group := &IcbGroup{}
 		group.Name = getIcbString(fields[1])
 		for i, v := range fields {
 			if v == "Topic:" {
@@ -272,6 +284,14 @@ func parseIcbGenericCommandOutput(data string, irc_conn net.Conn) {
 		logger.LogDebugf("ICB - [Group] Name = %s", group.Name)
 		logger.LogDebugf("ICB - [Group] Topic = '%s'", group.Topic)
 
+		// Check if group already present in IcbGroups list
+		if !icbGroupIsPresent(*group) {
+			IcbGroups = append(IcbGroups, *group)
+			logger.LogDebugf("ICB - Add group '%s' to list of groups", group.Name)
+		} else {
+			logger.LogDebugf("ICB - Group '%s' already present in list of groups", group.Name)
+		}
+
 	} else if strings.HasPrefix(data, "Total:") {
 		// Output for 'Total:'
 		fields := strings.Fields(data)
@@ -282,12 +302,14 @@ func parseIcbGenericCommandOutput(data string, irc_conn net.Conn) {
 		logger.LogDebugf("ICB - [Generic] '%s'", data)
 
 		// Send datas to IRC client via notification
-		err := irc.IrcSendNotice(irc_conn, "*** :%s", data)
-		if err != nil {
-			logger.LogErrorf("ICB - Error to send IRC notice message to client - %s", err.Error())
-			return
-		} else {
-			logger.LogDebug("ICB - Send IRC notice message for Generic Command output")
+		if len(data) != 0 && data != " " {
+			err := irc.IrcSendNotice(irc_conn, "*** :%s", data)
+			if err != nil {
+				logger.LogErrorf("ICB - Error to send IRC notice message to client - %s", err.Error())
+				return
+			} else {
+				logger.LogDebug("ICB - Send IRC notice message for Generic Command output")
+			}
 		}
 	}
 }
@@ -569,7 +591,7 @@ func icbSendLogin(conn net.Conn, nick string) error {
 }
 
 // Send ICB Command packet
-func icbSendCommand(conn net.Conn, args string) error {
+func IcbSendCommand(conn net.Conn, args string) error {
 	packet := []byte(fmt.Sprintf("%sw\001%s", icbPacketType["M_COMMAND"], args))
 	packet = preprendPacketLength(packet)
 
@@ -590,7 +612,7 @@ func icbSendCommand(conn net.Conn, args string) error {
 func timerCommand(conn net.Conn) {
 	time.Sleep(5 * time.Second)
 	// args = '' to list users
-	icbSendCommand(conn, "")
+	IcbSendCommand(conn, "")
 
 	// args = '-g' to list groups (/LIST IRC command)
 	// icbSendCommand(conn, "-g")

@@ -25,9 +25,10 @@ var (
 // Return code for IRC command
 const (
 	IrcCommandNop = iota // Type for command without outputs
-	IrcCommandPass
 	IrcCommandNick
+	IrcCommandPass
 	IrcCommandUser
+	IrcCommandList
 	IrcCommandQuit
 	IrcCommandUnknown
 )
@@ -145,17 +146,14 @@ func IrcCommand(conn net.Conn, data string) (int, []string) {
 		return IrcCommandQuit, nil
 	case "PING":
 		logger.LogDebugf("IRC - Received PING command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
+		// TODO Send ICB No-Op packet
 		IrcSendMsg(conn, "PONG %s", msg.Params[0])
 		logger.LogDebugf("IRC - Send PONG message")
 		return IrcCommandNop, nil
 	// Send fake reply for LIST command
 	case "LIST":
 		logger.LogDebugf("IRC - Received LIST command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
-		IrcSendCode(conn, IrcNick, IrcReplyCodes["RPL_LIST"], "#channel1 10 :topic for channel1")
-		IrcSendCode(conn, IrcNick, IrcReplyCodes["RPL_LIST"], "#channel2 20 :topic for channel2")
-		IrcSendCode(conn, IrcNick, IrcReplyCodes["RPL_LISTEND"], ":End of /LIST")
-		logger.LogDebugf("IRC - Send reply to LIST command - nick = %s", IrcNick)
-		return IrcCommandNop, nil
+		return IrcCommandList, nil
 	default:
 		logger.LogWarnf("IRC - Received unknown command '%s'", msg.Command)
 	}
