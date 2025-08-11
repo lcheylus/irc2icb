@@ -374,11 +374,6 @@ func icbHandleType(icb_conn net.Conn, msg icbPacket, irc_conn net.Conn) error {
 		logger.LogDebug("ICB - Send messages to IRC client for registration")
 		irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_WELCOME"], ":Welcome to %s proxy %s", version.Name, irc.IrcNick)
 
-		logger.LogWarnf("ICB - IcbProtocolLevel = %d", icbProtocolInfo.ProtocolLevel)
-		logger.LogWarnf("ICB - IcbHostId = %s", icbProtocolInfo.HostId)
-		logger.LogWarnf("ICB - IcbServerId = %s", icbProtocolInfo.ServerId)
-		logger.LogWarnf("ICB - (byte slice) IcbServerId = %q", []byte(icbProtocolInfo.ServerId))
-
 		// Your host is default.icb.net running ICB Server v1.2c protocol 1
 		irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_YOURHOST"], ":Your host is %s running %s protocol %d", icbProtocolInfo.HostId, icbProtocolInfo.ServerId, icbProtocolInfo.ProtocolLevel)
 		irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_CREATED"], ":This server was created recently")

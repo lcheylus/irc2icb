@@ -12,6 +12,8 @@ import (
 	logger "irc2icb/utils"
 )
 
+// TODO Create IRCConn type and adapt IRCSendXXX methods
+
 // Variables for IRC nick, pass, username and realname
 var (
 	IrcNick     string
