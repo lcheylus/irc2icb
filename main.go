@@ -238,24 +238,22 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 		case irc.IrcCommandUser:
 			logger.LogDebugf("IRC - user = %s - realname = '%s'", irc.IrcUser, irc.IrcRealname)
 		case irc.IrcCommandList:
-			// Create channel to signal that groups list is ready
-			icb.IcbGroupsChannel = make(chan struct{})
+			// Channel to receive ICB groups list
+			icb.IcbGroupsChannel = make(chan []icb.IcbGroup)
 
 			// Send ICB command to list groups
 			logger.LogDebugf("IRC - LIST command => send ICB command to list groups")
 			icb.IcbSendCommand(icb_conn, "-g")
 
-			// Wait to get groups from ICB server
-			select {
-			case <-icb.IcbGroupsChannel:
-				for _, group := range icb.IcbGroups {
-					logger.LogDebugf("ICB Group: Name = %s - Topic = '%s'", group.Name, group.Topic)
-					// TODO Add count in reply => how many clients are joined to that channel.
-					irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_LIST"], "#%s 42 :%s", group.Name, group.Topic)
-				}
-				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_LISTEND"], ":End of /LIST")
-				logger.LogDebugf("IRC - Send reply to LIST command - nick = %s", irc.IrcNick)
+			// Receive ICB groups list via channel
+			icb_groups := <-icb.IcbGroupsChannel
+			for _, group := range icb_groups {
+				logger.LogDebugf("ICB Group: Name = %s - Topic = '%s'", group.Name, group.Topic)
+				// TODO Add count in reply => how many clients are joined to that channel.
+				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_LIST"], "#%s 42 :%s", group.Name, group.Topic)
 			}
+			irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_LISTEND"], ":End of /LIST")
+			logger.LogDebugf("IRC - Send reply to LIST command - nick = %s", irc.IrcNick)
 		case irc.IrcCommandQuit:
 			logger.LogInfof("IRC - Client disconnected: %s\n", clientAddr)
 			close(icb_ch)

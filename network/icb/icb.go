@@ -45,9 +45,9 @@ type icbProtocolInfos struct {
 
 // Variables for ICB connection
 var (
-	IcbLoggedIn      bool          // ICB logged in status
-	IcbGroups        []IcbGroup    // List of ICB groups
-	IcbGroupsChannel chan struct{} // Channel to signal that groups list is populated
+	IcbLoggedIn      bool            // ICB logged in status
+	IcbGroups        []IcbGroup      // List of ICB groups
+	IcbGroupsChannel chan []IcbGroup // Channel to send groups list
 
 	icbProtocolInfo icbProtocolInfos
 )
@@ -96,6 +96,7 @@ type IcbGroup struct {
 // - irc_conn (net.Conn): handle for connection to IRC client
 // - icb_closed (chan bool): channel to close connection to ICB server
 // TODO return code for errors
+// TODO Add SetReadDeadline for conn and check time-out
 func GetIcbPackets(icb_conn net.Conn, irc_conn net.Conn, icb_close chan struct{}) {
 	reader := bufio.NewReader(icb_conn)
 
@@ -299,8 +300,8 @@ func parseIcbGenericCommandOutput(data string, irc_conn net.Conn) {
 		// TODO check if not null-terminated string in Join
 		logger.LogDebugf("ICB - [Total] %s", strings.Join(fields[1:], " "))
 
-		// Send signal for groups list
-		close(IcbGroupsChannel)
+		// Send groups list via channel
+		IcbGroupsChannel <- IcbGroups
 
 	} else {
 		// Generic command output
