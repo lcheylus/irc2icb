@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	irc "irc2icb/network/irc"
+	"irc2icb/network/irc"
 	logger "irc2icb/utils"
 	"irc2icb/version"
 )
@@ -88,34 +88,49 @@ type icbGroup struct {
 	Topic string
 }
 
-// Loop to read packets from ICB server
+// Loop to read packets from ICB server, called as goroutine
 // Inputs:
 // - icb_conn (net.Conn): handle for connection to ICB server
 // - irc_conn (net.Conn): handle for connection to IRC client
+// - icb_closed (chan bool): channel to close connection to ICB server
 // TODO return code for errors
-func GetIcbPackets(icb_conn net.Conn, irc_conn net.Conn) {
+func GetIcbPackets(icb_conn net.Conn, irc_conn net.Conn, icb_close chan struct{}) {
 	reader := bufio.NewReader(icb_conn)
 
 	for {
-		msg, err := parseIcbPacket(reader)
-		if err != nil {
-			if err == io.EOF {
-				logger.LogInfo("ICB - connection closed by ICB server")
-				break
+		select {
+		case <-icb_close:
+			// conn.Close called from main via defer
+			logger.LogInfof("ICB - Close connection to server %s", icb_conn.RemoteAddr().String())
+			goto End
+		default:
+			msg, err := parseIcbPacket(reader)
+			if err != nil {
+				if err == io.EOF {
+					// TODO Handle reconnection to ICB server
+					logger.LogInfo("ICB - connection closed by ICB server")
+					goto End
+				} else {
+					// TODO Handle read error from ICB server
+					logger.LogErrorf("ICB - Read error from ICB server - %s", err.Error())
+					break
+				}
 			}
-			logger.LogErrorf("ICB - Read error from ICB server - %s", err.Error())
-			break
-		}
 
-		logger.LogDebugf("ICB - Received ICB Message: Type=%s, Data='%s' (len = %d)", getIcbPacketType(string(msg.Type)), string(msg.Data), len(msg.Data))
-		if len(msg.Data) > 1 {
-			fields := getIcbPacketFields(msg.Data)
-			logger.LogDebugf("ICB - ICB message fields = %s", strings.Join(fields, ","))
-		}
+			logger.LogDebugf("ICB - Received ICB Message: Type=%s, Data='%s' (len = %d)", getIcbPacketType(string(msg.Type)), string(msg.Data), len(msg.Data))
+			if len(msg.Data) > 1 {
+				fields := getIcbPacketFields(msg.Data)
+				logger.LogDebugf("ICB - ICB message fields = %s", strings.Join(fields, ","))
+			}
 
-		// TODO check errors
-		icbHandleType(icb_conn, *msg, irc_conn)
+			// TODO check errors
+			icbHandleType(icb_conn, *msg, irc_conn)
+		}
 	}
+
+End:
+	logger.LogInfo("ICB - Stop to read ICB packets from server")
+	return
 }
 
 // parseIcbPacket parses raw ICB datas received from server
@@ -384,7 +399,9 @@ func icbHandleType(icb_conn net.Conn, msg icbPacket, irc_conn net.Conn) error {
 	// Error Message
 	case icbPacketType["M_ERROR"]:
 		fields := getIcbPacketFields(msg.Data)
-		logger.LogDebugf("ICB - Received Error Message packet - err = %s", fields[0])
+		logger.LogErrorf("ICB - Received Error Message packet - err = %s", fields[0])
+		// TODO Handle case if ICB connection not closed/reset
+		// => ICB Error "Nickname already in use." with reconnection
 	// Important Message
 	case icbPacketType["M_IMPORTANT"]:
 		fields := getIcbPacketFields(msg.Data)
@@ -605,7 +622,6 @@ func IcbConnect(server string, port int) net.Conn {
 		logger.LogErrorf("ICB - Unable to connect to ICB server [%s]: err = %s", addr, err.Error())
 		return nil
 	}
-	// defer icb_conn.Close()
 
 	return conn
 }

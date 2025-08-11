@@ -190,6 +190,8 @@ func handleSignals() {
 // - server_addr (string): address for ICB server
 // - server_port (int): port for ICB server
 func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int) {
+	var icb_ch chan struct{}
+
 	defer irc_conn.Close()
 
 	// Get client address
@@ -205,7 +207,7 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 		logger.LogDebug("IRC - Send notification to client")
 	}
 
-	// Read from connection
+	// Read from connection with IRC client
 	scanner := bufio.NewScanner(irc_conn)
 	for scanner.Scan() {
 		data := scanner.Text()
@@ -221,13 +223,23 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			// TODO Handle case if already connected to ICB server
 			// Connection to ICB server
 			icb_conn := icb.IcbConnect(server_addr, server_port)
+			defer icb_conn.Close()
 
 			ip := strings.Split(icb_conn.RemoteAddr().String(), ":")[0]
 			logger.LogInfof("ICB - Connected to server %s (%s) port %d", server_addr, ip, server_port)
 
-			go icb.GetIcbPackets(icb_conn, irc_conn)
+			// Channel with no type, to close connection to ICB server
+			icb_ch = make(chan struct{})
+
+			// Loop to read ICB packets from server
+			logger.LogInfo("ICB - Start loop to read packets from server")
+			go icb.GetIcbPackets(icb_conn, irc_conn, icb_ch)
 		case irc.IrcCommandUser:
 			logger.LogDebugf("IRC - user = %s - realname = '%s'", irc.IrcUser, irc.IrcRealname)
+		case irc.IrcCommandQuit:
+			logger.LogInfof("IRC - Client disconnected: %s\n", clientAddr)
+			close(icb_ch)
+
 		case irc.IrcCommandUnknown:
 		default:
 			/* if err != nil {
