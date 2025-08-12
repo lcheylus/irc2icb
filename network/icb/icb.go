@@ -54,11 +54,14 @@ type icbProtocolInfos struct {
 
 // Variables for ICB connection
 var (
-	IcbLoggedIn      bool            // ICB logged in status
-	IcbGroups        []IcbGroup      // List of ICB groups
-	IcbGroupsChannel chan []IcbGroup // Channel to send groups list
+	IcbLoggedIn bool // ICB logged in status
 
-	IcbMode int = IcbModeNone // ICB mode to reply to IRC commands
+	IcbGroups         []*IcbGroup      // List of ICB groups
+	IcbGroupsReceived chan struct{}    // Channel to signal reception of groups list
+	IcbGroupsChannel  chan []*IcbGroup // Channel to send groups list
+
+	IcbGroupCurrent string               // Name of current group (for LIST and NAMES replies)
+	IcbMode         int    = IcbModeNone // ICB mode to reply to IRC commands
 
 	icbProtocolInfo icbProtocolInfos
 )
@@ -99,6 +102,7 @@ type icbUser struct {
 type IcbGroup struct {
 	Name  string
 	Topic string
+	Users []string // List of users (by nick) member of this group
 }
 
 // Loop to read packets from ICB server, called as goroutine
@@ -134,7 +138,7 @@ func GetIcbPackets(icb_conn net.Conn, irc_conn net.Conn, icb_close chan struct{}
 			logger.LogDebugf("ICB - Received ICB Message: Type=%s, Data='%s' (len = %d)", getIcbPacketType(string(msg.Type)), string(msg.Data), len(msg.Data))
 			if len(msg.Data) > 1 {
 				fields := getIcbPacketFields(msg.Data)
-				logger.LogDebugf("ICB - ICB message fields = %s", strings.Join(fields, ","))
+				logger.LogDebugf("ICB - ICB message fields = %q", fields)
 			}
 
 			// TODO check errors
@@ -205,9 +209,36 @@ func getIcbPacketFields(raw []byte) []string {
 
 // Check if a group is not already in groups list
 // Return true is group already in groups list, false if not
-func icbGroupIsPresent(group IcbGroup) bool {
+func icbGroupIsPresent(group *IcbGroup) bool {
 	for _, grp := range IcbGroups {
 		if grp.Name == group.Name {
+			return true
+		}
+	}
+	return false
+}
+
+// Get group by name in list of groups
+// Inputs:
+// - name (string): name of group to find
+// Return pointer to IcbGroupd found, nil if none
+func icbGetGroup(name string) *IcbGroup {
+	for _, group := range IcbGroups {
+		if group.Name == name {
+			return group
+		}
+	}
+	logger.LogErrorf("ICB - [icbGetGroup] unable to find group '%s' in list of groups", name)
+	return nil
+}
+
+// Check if a user's nick is not already in users for group
+// Inputs:
+// - nick (string): user nick
+// Return true is user already in group, false if not
+func (group *IcbGroup) icbUserInGroup(nick string) bool {
+	for _, user := range group.Users {
+		if user == nick {
 			return true
 		}
 	}
@@ -224,7 +255,7 @@ func stringToTime(s string) (time.Time, error) {
 }
 
 // Parse Command Ouput for type = 'wl' and returns ICB User parsed from data
-func icbGetUser(fields []string) (*icbUser, error) {
+func icbParseUser(fields []string) (*icbUser, error) {
 	if len(fields) != 8 {
 		return nil, fmt.Errorf("invalid number of fields for user - len(fields) = %d", len(fields))
 	}
@@ -255,11 +286,19 @@ func icbGetUser(fields []string) (*icbUser, error) {
 	user.Hostname = getIcbString(fields[6])
 	user.RegStatus = getIcbString(fields[7])
 
+	// Add user nick in current group if not already present
+	// TODO Check error (return == nil)
+	group := icbGetGroup(IcbGroupCurrent)
+
+	if !group.icbUserInGroup(user.Nick) {
+		group.Users = append(group.Users, user.Nick)
+	}
+
 	return user, nil
 }
 
 // Print ICB User
-func icbPrintUser(user icbUser) {
+func (user *icbUser) icbPrintUser() {
 	logger.LogDebugf("ICB - [User] Moderator = %v", user.Moderator)
 	logger.LogDebugf("ICB - [User] Nick = %s", user.Nick)
 	logger.LogDebugf("ICB - [User] Idle = %d", user.Idle)
@@ -267,6 +306,7 @@ func icbPrintUser(user icbUser) {
 	logger.LogDebugf("ICB - [User] Username = %s", user.Username)
 	logger.LogDebugf("ICB - [User] Hostname = %s", user.Hostname)
 	logger.LogDebugf("ICB - [User] Registration status = '%s'", user.RegStatus)
+	logger.LogDebugf("ICB - [User] Current group = '%s'", IcbGroupCurrent)
 }
 
 // Parse ICB Generic Command Output (type = 'co')
@@ -298,12 +338,11 @@ func parseIcbGenericCommandOutput(data string, irc_conn net.Conn) {
 		logger.LogDebugf("ICB - [Group] Topic = '%s'", group.Topic)
 
 		// Check if group already present in IcbGroups list
-		if !icbGroupIsPresent(*group) {
-			IcbGroups = append(IcbGroups, *group)
+		if !icbGroupIsPresent(group) {
+			IcbGroups = append(IcbGroups, group)
 			logger.LogDebugf("ICB - Add group '%s' to list of groups", group.Name)
-		} else {
-			logger.LogDebugf("ICB - Group '%s' already present in list of groups", group.Name)
 		}
+		IcbGroupCurrent = group.Name
 
 	} else if strings.HasPrefix(data, "Total:") {
 		// Output for 'Total:'
@@ -311,8 +350,17 @@ func parseIcbGenericCommandOutput(data string, irc_conn net.Conn) {
 		// TODO check if not null-terminated string in Join
 		logger.LogDebugf("ICB - [Total] %s", strings.Join(fields[1:], " "))
 
-		// Send groups list via channel for IRC LIST command
+		// TODO Parse content ("57 users in 9 groups")
+		// and check values for users and groups
+
 		if IcbMode == IcbModeList {
+			// Send signal for completion of ICB command to get groups
+			close(IcbGroupsReceived)
+		} else if IcbMode == IcbModeNames {
+			// for _, group := range IcbGroups {
+			// 	logger.LogDebugf("ICB - [Group] Name = '%s' Topic = '%s' - %d users - Users = %q", group.Name, group.Topic, len(group.Users), group.Users)
+			// }
+			// Send groups list via channel for IRC LIST command
 			IcbGroupsChannel <- IcbGroups
 		}
 
@@ -353,9 +401,16 @@ func parseIcbCommandOutput(fields []string, irc_conn net.Conn) error {
 	// In a who listing, a line of output listing a user
 	case "wl":
 		// TODO Parse fields for users listing
-		logger.LogDebugf("ICB - [User] fields = %v", fields[1:])
-		user, _ := icbGetUser(fields[1:])
-		icbPrintUser(*user)
+		logger.LogDebugf("ICB - [User] fields = %q", fields[1:])
+		user, _ := icbParseUser(fields[1:])
+
+		// TODO Send IRC reply to NAMES command
+		if IcbMode == IcbModeNames {
+			logger.LogWarnf("ICB - Current group = '%s' - Users = %q", IcbGroupCurrent, (icbGetGroup(IcbGroupCurrent)).Users)
+		}
+
+		user.icbPrintUser()
+
 	// In a who listing, a line of output listing a group
 	case "wg":
 		group_name := getIcbString(fields[1])
@@ -611,8 +666,18 @@ func icbSendLogin(conn net.Conn, nick string) error {
 
 // Send ICB command to get groups
 func IcbSendList(conn net.Conn) error {
+	logger.LogInfo("ICB - Send command to get groups")
 	IcbMode = IcbModeList
 	err := IcbSendCommand(conn, "-g")
+
+	return err
+}
+
+// Send ICB command to get users
+func IcbSendNames(conn net.Conn) error {
+	logger.LogInfo("ICB - Send command to get users")
+	IcbMode = IcbModeNames
+	err := IcbSendCommand(conn, "")
 
 	return err
 }
