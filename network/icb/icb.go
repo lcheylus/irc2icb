@@ -9,7 +9,6 @@ import (
 	"net"
 	"strconv"
 	"strings"
-	"time"
 
 	irc "irc2icb/network/irc"
 	logger "irc2icb/utils"
@@ -66,6 +65,12 @@ var (
 	icbProtocolInfo icbProtocolInfos
 )
 
+// icbPacket represents a parsed ICB packet
+type icbPacket struct {
+	Type byte
+	Data []byte
+}
+
 // Get ICB packet type (M_xxx)
 // Input: value (string with 1 byte) for type
 // Output: type (M_xxx)
@@ -78,31 +83,6 @@ func getIcbPacketType(val string) string {
 
 	logger.LogWarnf("ICB - getIcbPacketType: unable to get type for value '%s'", val)
 	return ""
-}
-
-// icbPacket represents a parsed ICB packet
-type icbPacket struct {
-	Type byte
-	Data []byte
-}
-
-// icbUser represents a ICB User (datas parsed for Command packet, type='wl')
-type icbUser struct {
-	Moderator bool
-	Nick      string
-	Idle      int
-	LoginTime time.Time // Unix time_t format - Seconds since Jan. 1, 1970 GMT
-	Username  string
-	Hostname  string
-	RegStatus string
-}
-
-// IcbGroup represents a ICB Group (datas parsed for Command packet, type='co'
-// with header 'Group:')
-type IcbGroup struct {
-	Name  string
-	Topic string
-	Users []string // List of users (by nick) member of this group
 }
 
 // Loop to read packets from ICB server, called as goroutine
@@ -205,108 +185,6 @@ func getIcbString(input string) string {
 func getIcbPacketFields(raw []byte) []string {
 	fields := strings.Split(string(raw), "\001")
 	return fields
-}
-
-// Check if a group is not already in groups list
-// Return true is group already in groups list, false if not
-func icbGroupIsPresent(group *IcbGroup) bool {
-	for _, grp := range IcbGroups {
-		if grp.Name == group.Name {
-			return true
-		}
-	}
-	return false
-}
-
-// Get group by name in list of groups
-// Inputs:
-// - name (string): name of group to find
-// Return pointer to IcbGroupd found, nil if none
-func icbGetGroup(name string) *IcbGroup {
-	for _, group := range IcbGroups {
-		if group.Name == name {
-			return group
-		}
-	}
-	logger.LogErrorf("ICB - [icbGetGroup] unable to find group '%s' in list of groups", name)
-	return nil
-}
-
-// Check if a user's nick is not already in users for group
-// Inputs:
-// - nick (string): user nick
-// Return true is user already in group, false if not
-func (group *IcbGroup) icbUserInGroup(nick string) bool {
-	for _, user := range group.Users {
-		if user == nick {
-			return true
-		}
-	}
-	return false
-}
-
-// Convert Unix time as string (seconds since Jan. 1, 1970 GMT) to time.Time
-func stringToTime(s string) (time.Time, error) {
-	sec, err := strconv.ParseInt(s, 10, 64)
-	if err != nil {
-		return time.Time{}, err
-	}
-	return time.Unix(sec, 0), nil
-}
-
-// Parse Command Ouput for type = 'wl' and returns ICB User parsed from data
-func icbParseUser(fields []string) (*icbUser, error) {
-	if len(fields) != 8 {
-		return nil, fmt.Errorf("invalid number of fields for user - len(fields) = %d", len(fields))
-	}
-	var err error
-	user := &icbUser{}
-
-	// Check if moderator ('m' or '*')
-	user.Moderator = false
-	moderator := getIcbString(fields[0])
-	if moderator != " " {
-		if moderator != "m" && moderator != "*" {
-			logger.LogWarnf("ICB - invalid moderator status = '%s'", moderator)
-		} else {
-			user.Moderator = true
-		}
-	}
-	user.Nick = getIcbString(fields[1])
-	user.Idle, err = strconv.Atoi(getIcbString(fields[2]))
-	if err != nil {
-		logger.LogErrorf("ICB - invalid idle time for user %s - value = %s", user.Nick, getIcbString(fields[2]))
-	}
-	// Unix time format
-	user.LoginTime, err = stringToTime(getIcbString(fields[4]))
-	if err != nil {
-		logger.LogErrorf("ICB - invalid login time for user %s - value = %s", user.Nick, getIcbString(fields[4]))
-	}
-	user.Username = getIcbString(fields[5])
-	user.Hostname = getIcbString(fields[6])
-	user.RegStatus = getIcbString(fields[7])
-
-	// Add user nick in current group if not already present
-	// TODO Check error (return == nil)
-	group := icbGetGroup(IcbGroupCurrent)
-
-	if !group.icbUserInGroup(user.Nick) {
-		group.Users = append(group.Users, user.Nick)
-	}
-
-	return user, nil
-}
-
-// Print ICB User
-func (user *icbUser) icbPrintUser() {
-	logger.LogDebugf("ICB - [User] Moderator = %v", user.Moderator)
-	logger.LogDebugf("ICB - [User] Nick = %s", user.Nick)
-	logger.LogDebugf("ICB - [User] Idle = %d", user.Idle)
-	logger.LogDebugf("ICB - [User] LoginTime = %s", user.LoginTime.String())
-	logger.LogDebugf("ICB - [User] Username = %s", user.Username)
-	logger.LogDebugf("ICB - [User] Hostname = %s", user.Hostname)
-	logger.LogDebugf("ICB - [User] Registration status = '%s'", user.RegStatus)
-	logger.LogDebugf("ICB - [User] Current group = '%s'", IcbGroupCurrent)
 }
 
 // Parse ICB Generic Command Output (type = 'co')
@@ -700,29 +578,6 @@ func IcbSendCommand(conn net.Conn, args string) error {
 	return err
 }
 
-// TESTS - Function to send Command packet 5 seconds after Login OK
-func timerCommand(conn net.Conn) {
-	time.Sleep(5 * time.Second)
-	// args = '' to list users
-	IcbSendCommand(conn, "")
-
-	// args = '-g' to list groups (/LIST IRC command)
-	// icbSendCommand(conn, "-g")
-
-	// args = <group name> to list users connected to group (/NAMES IRC command)
-	// icbSendCommand(conn, "slac")
-}
-
-// TESTS - Function to send Ping packet with timer
-// With server default.icb.net, Error message: "Server doesn't handle ICB_M_PING packets"
-func timerPing(conn net.Conn) {
-	for {
-		time.Sleep(5 * time.Second)
-		logger.LogDebugf("ICB - Send Ping packet to server")
-		icbSendPing(conn)
-	}
-}
-
 // Send ICB Ping packet
 func icbSendPing(conn net.Conn) error {
 	packet := []byte(icbPacketType["M_PING"])
@@ -741,12 +596,11 @@ func icbSendPing(conn net.Conn) error {
 	return err
 }
 
-// TCP connection for ICB client
+// TCP connection to ICB server
 // Inputs:
 // - server (string); address for ICB server
 // - port (int): port for ICB server
 // - irc_conn (net.Conn): handle for connection to IRC client
-// func IcbConnect(server string, port int, irc_conn net.Conn) net.Conn {
 func IcbConnect(server string, port int) net.Conn {
 	addr := fmt.Sprintf("%s:%d", server, port)
 	IcbLoggedIn = false
