@@ -25,7 +25,7 @@ import (
 
 // Struct for configuration (set via opt flags or TOML file)
 type Config struct {
-	Debug      bool
+	Verbose    int
 	LogFile    string
 	ConfigFile string
 	ListenAddr string `toml:"listen-address"`
@@ -39,8 +39,8 @@ func printUsage() {
 	fmt.Printf("Usage: %s [-h] [-v] [-d] [-f logfile] -c conffile | [-l address] [-p port] -s server [-P port]\n", version.Name)
 	fmt.Println("\nOptions:")
 	fmt.Println("  -h, --help\t\t\tShow this help message")
-	fmt.Println("  -v, --version\t\t\tShow version")
-	fmt.Println("  -d, --debug\t\t\tDo not daemonize (detach from controlling terminal) and produce debugging output on stdout/stderr")
+	fmt.Println("  -V, --version\t\t\tShow version")
+	fmt.Println("  -v\t\t\t\tDo not daemonize (detach from controlling terminal) and produce debugging output on stdout/stderr. Repeat to increase logs level (Info, Debug, Trace)")
 	fmt.Println("  -f, --logfile logfile\t\tFile to write logs")
 	fmt.Println("  -c, --conf conffile\t\tConfiguration file (TOML format)")
 	fmt.Println("  -l, --listen listen-address\tBind to the specified address when listening for client connections. If not specified, connections to any address are accepted")
@@ -56,8 +56,8 @@ func parseOptions() Config {
 
 	options := []optparse.Option{
 		{"help", 'h', optparse.KindNone},
-		{"version", 'v', optparse.KindNone},
-		{"debug", 'd', optparse.KindNone},
+		{"version", 'V', optparse.KindNone},
+		{"", 'v', optparse.KindNone},
 		{"logfile", 'f', optparse.KindRequired},
 		{"conf", 'c', optparse.KindRequired},
 		{"listen", 'l', optparse.KindRequired},
@@ -73,27 +73,27 @@ func parseOptions() Config {
 	}
 
 	for _, result := range results {
-		switch result.Long {
-		case "help":
+		switch result.Short {
+		case 'h':
 			printUsage()
 			os.Exit(0)
-		case "version":
+		case 'V':
 			fmt.Println(version.Version)
 			os.Exit(0)
-		case "debug":
-			config.Debug = true
-		case "logfile":
+		case 'v':
+			config.Verbose++
+		case 'f':
 			config.LogFile = result.Optarg
-		case "conf":
+		case 'c':
 			config.ConfigFile = result.Optarg
-		case "listen":
+		case 'l':
 			config.ListenAddr = result.Optarg
 			ip := net.ParseIP(config.ListenAddr)
 			if ip == nil {
 				logger.LogErrorf("listen-addr is not a valid IP address (value = %s)", config.ListenAddr)
 				os.Exit(1)
 			}
-		case "listen-port":
+		case 'p':
 			config.ListenPort, err = strconv.Atoi(result.Optarg)
 			if err != nil {
 				logger.LogError("listen-port must be an integer")
@@ -103,9 +103,9 @@ func parseOptions() Config {
 				logger.LogErrorf("invalid value for listen-port (value = %d)", config.ListenPort)
 				os.Exit(1)
 			}
-		case "server":
+		case 's':
 			config.Server = result.Optarg
-		case "server-port":
+		case 'P':
 			config.ServerPort, err = strconv.Atoi(result.Optarg)
 			if err != nil {
 				logger.LogError("server-port must be an integer")
@@ -341,7 +341,7 @@ func main() {
 		config.ListenPort = config_from_file.ListenPort
 	}
 
-	if !config.Debug {
+	if config.Verbose == 0 {
 		if config.LogFile == "" {
 			logger.LogError("log file must be defined")
 			os.Exit(1)
@@ -375,7 +375,7 @@ func main() {
 		config.ListenPort = 6667
 	}
 
-	logger.LogInfof("debug %t", config.Debug)
+	logger.LogInfof("debug %t", config.Verbose)
 	logger.LogInfof("logfile %s", config.LogFile)
 	logger.LogInfof("conf-file %s", config.ConfigFile)
 	logger.LogInfof("listen-addr %s", config.ListenAddr)
@@ -383,11 +383,23 @@ func main() {
 	logger.LogInfof("server %s", config.Server)
 	logger.LogInfof("server-port %d", config.ServerPort)
 
-	// logger.SetLogLevel(logger.LevelDebug)
-	logger.SetLogLevel(logger.LevelTrace)
+	switch config.Verbose {
+	case 1:
+		logger.SetLogLevel(logger.LevelInfo)
+		logger.LogInfo("logs level = INFO")
+	case 2:
+		logger.SetLogLevel(logger.LevelDebug)
+		logger.LogInfo("logs level = DEBUG")
+	case 3:
+		logger.SetLogLevel(logger.LevelTrace)
+		logger.LogInfo("logs level = TRACE")
+	default:
+		logger.SetLogLevel(logger.LevelInfo)
+		logger.LogInfo("logs level = INFO")
+	}
 
 	// Fork process to run as daemon
-	if !config.Debug && os.Getenv("IS_DAEMON") != "1" {
+	if (config.Verbose == 0) && (os.Getenv("IS_DAEMON") != "1") {
 		pid, err := forkProcess()
 		if err != nil {
 			logger.LogFatalf("unable to fork process - err = %s", err.Error())
