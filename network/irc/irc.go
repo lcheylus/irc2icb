@@ -165,6 +165,16 @@ func IrcCommand(conn net.Conn, data string) (int, []string) {
 	return IrcCommandUnknown, []string{msg.Command}
 }
 
+// Send JOIN message to IRC connection
+// Inputs:
+// - nick (string): client/nick who is joining
+// - channel (string): channel which that client has joined
+func IrcSendJoin(conn net.Conn, nick string, channel string) error {
+	msg := fmt.Sprintf(":%s JOIN :%s\r\n")
+	_, err := conn.Write([]byte(msg))
+	return err
+}
+
 // Send notification message to IRC connection
 func IrcSendNotice(conn net.Conn, format string, args ...interface{}) error {
 	msg := fmt.Sprintf(format, args...)
