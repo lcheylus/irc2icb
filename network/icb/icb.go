@@ -44,6 +44,10 @@ const (
 	IcbModeWho
 )
 
+const (
+	ICB_JOIN string = "You are now in group " // ICB Status message when joining a group
+)
+
 // Type to handle variable parsed from ICB Protocol packet
 type icbProtocolInfos struct {
 	ProtocolLevel int
@@ -314,8 +318,11 @@ func parseIcbStatus(category string, content string, irc_conn net.Conn) error {
 	}
 	switch category {
 	case "Status":
-		// TODO Handle message 'You are now in group slac' => send IRC PART
-		irc.IrcSendNotice(irc_conn, "*** :ICB Status Message: %s", content)
+		if !strings.HasPrefix(content, ICB_JOIN) {
+			irc.IrcSendNotice(irc_conn, "*** :ICB Status Message: %s", content)
+		}
+		// TODO Wait for groups/users then send IRC JOIN message and list of
+		// users in ICB group
 		return nil
 	case "No-Pass":
 		irc.IrcSendNotice(irc_conn, "*** :ICB Status Message: %s", content)
