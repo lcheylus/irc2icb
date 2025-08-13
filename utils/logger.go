@@ -22,10 +22,11 @@ var (
 	colorBlue   = []byte("\033[0;34m")
 	colorPurple = []byte("\033[0;35m")
 	colorCyan   = []byte("\033[0;36m")
-	colorGray   = []byte("\033[0;37m")
+	colorWhite  = []byte("\033[0;37m")
 )
 
 const (
+	LevelTrace Level = -8
 	LevelDebug Level = -4
 	LevelInfo  Level = 0
 	LevelWarn  Level = 4
@@ -44,7 +45,7 @@ func WithoutColors() {
 	colorBlue = []byte("")
 	colorPurple = []byte("")
 	colorCyan = []byte("")
-	colorGray = []byte("")
+	colorWhite = []byte("")
 }
 
 // Set logs level
@@ -55,6 +56,22 @@ func SetLogLevel(level Level) {
 // Get logs level
 func getLevel() Level {
 	return logLevel
+}
+
+// Print log for level = TRACE
+func LogTrace(msg string) {
+	if getLevel() <= LevelTrace {
+		prefix := fmt.Sprintf("%sTRACE%s", colorWhite, colorOff)
+		log.Printf("%s %s", prefix, msg)
+	}
+}
+
+// Print log for level = TRACE with string format
+func LogTracef(format string, args ...interface{}) {
+	if getLevel() <= LevelTrace {
+		prefix := fmt.Sprintf("%sTRACE%s", colorWhite, colorOff)
+		log.Printf(prefix+" "+format, args...)
+	}
 }
 
 // Print log for level = DEBUG
