@@ -212,7 +212,7 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 	scanner := bufio.NewScanner(irc_conn)
 	for scanner.Scan() {
 		data := scanner.Text()
-		logger.LogDebugf("IRC - Received from client [%s]: %s", clientAddr, data)
+		logger.LogTracef("IRC - Received from client [%s]: %s", clientAddr, data)
 
 		// Handle IRC client commands
 		// ret, params := irc.IrcCommand(conn, data)
@@ -253,6 +253,7 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			icb.IcbSendNames(icb_conn)
 
 			// Receive ICB groups list with users via channel
+			// TODO Filter groups with IRC command "LIST" paramaters
 			icb_groups := <-icb.IcbGroupsChannel
 			for _, group := range icb_groups {
 				logger.LogDebugf("ICB - [Group] Name = %s - Topic = '%s' - %d users %q", group.Name, group.Topic, len(group.Users), group.Users)
@@ -382,7 +383,8 @@ func main() {
 	logger.LogInfof("server %s", config.Server)
 	logger.LogInfof("server-port %d", config.ServerPort)
 
-	logger.SetLogLevel(logger.LevelDebug)
+	// logger.SetLogLevel(logger.LevelDebug)
+	logger.SetLogLevel(logger.LevelTrace)
 
 	// Fork process to run as daemon
 	if !config.Debug && os.Getenv("IS_DAEMON") != "1" {

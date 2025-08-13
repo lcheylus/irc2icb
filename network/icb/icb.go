@@ -115,10 +115,10 @@ func GetIcbPackets(icb_conn net.Conn, irc_conn net.Conn, icb_close chan struct{}
 				}
 			}
 
-			logger.LogDebugf("ICB - Received ICB Message: Type=%s, Data='%s' (len = %d)", getIcbPacketType(string(msg.Type)), string(msg.Data), len(msg.Data))
+			logger.LogTracef("ICB - Received ICB Message: Type=%s, Data='%s' (len = %d)", getIcbPacketType(string(msg.Type)), string(msg.Data), len(msg.Data))
 			if len(msg.Data) > 1 {
 				fields := getIcbPacketFields(msg.Data)
-				logger.LogDebugf("ICB - ICB message fields = %q", fields)
+				logger.LogTracef("ICB - ICB message fields = %q", fields)
 			}
 
 			// TODO check errors
@@ -244,7 +244,7 @@ func parseIcbGenericCommandOutput(data string, irc_conn net.Conn) {
 
 	} else {
 		// Generic command output
-		logger.LogDebugf("ICB - [Generic] '%s'", data)
+		logger.LogTracef("ICB - [Generic] '%s'", data)
 
 		// Send datas to IRC client via notification
 		if len(data) != 0 && data != " " {
@@ -374,20 +374,20 @@ func icbHandleType(icb_conn net.Conn, msg icbPacket, irc_conn net.Conn) error {
 		fields := getIcbPacketFields(msg.Data)
 		nickname := getIcbString(fields[0])
 		content := getIcbString(fields[1])
-		logger.LogDebugf("ICB - Received Open Message packet - nickname = %s - content = %s", nickname, content)
+		logger.LogTracef("ICB - Received Open Message packet - nickname = %s - content = %s", nickname, content)
 	// Personal Message
 	case icbPacketType["M_PERSONAL"]:
 		logger.LogDebug("Received ICB Personal Message")
 		fields := getIcbPacketFields(msg.Data)
 		nickname := getIcbString(fields[0])
 		content := getIcbString(fields[1])
-		logger.LogDebugf("ICB - Received Personal Message packet - nickname = %s - content = %s", nickname, content)
+		logger.LogTracef("ICB - Received Personal Message packet - nickname = %s - content = %s", nickname, content)
 	// Status Message
 	case icbPacketType["M_STATUS"]:
 		fields := getIcbPacketFields(msg.Data)
 		category := getIcbString(fields[0])
 		content := getIcbString(fields[1])
-		logger.LogDebugf("ICB - Received Status Message packet - category = %s - content = %s", category, content)
+		logger.LogTracef("ICB - Received Status Message packet - category = %s - content = %s", category, content)
 		// TODO Parse Status Message: Status, Arrive, Depart, Sign-Off, Name, Topic, Pass, Boot
 		err := parseIcbStatus(category, content, irc_conn)
 		if err != nil {
@@ -404,7 +404,7 @@ func icbHandleType(icb_conn net.Conn, msg icbPacket, irc_conn net.Conn) error {
 		fields := getIcbPacketFields(msg.Data)
 		category := getIcbString(fields[0])
 		content := getIcbString(fields[1])
-		logger.LogDebugf("ICB - Received Important Message packet - category = %s - content = %s", category, content)
+		logger.LogTracef("ICB - Received Important Message packet - category = %s - content = %s", category, content)
 	// Exit
 	case icbPacketType["M_EXIT"]:
 		logger.LogDebug("ICB - Received Exit packet")
@@ -453,7 +453,7 @@ func icbHandleType(icb_conn net.Conn, msg icbPacket, irc_conn net.Conn) error {
 	case icbPacketType["M_BEEP"]:
 		fields := getIcbPacketFields(msg.Data)
 		nick := getIcbString(fields[0])
-		logger.LogDebugf("ICB - Received Beep packet - nick = %s", nick)
+		logger.LogTracef("ICB - Received Beep packet - nick = %s", nick)
 	// Ping from server
 	case icbPacketType["M_PING"]:
 		logger.LogDebug("ICB - Received PING packet")
@@ -529,7 +529,7 @@ func icbSendLogin(conn net.Conn, nick string) error {
 	}
 	packet = preprendPacketLength(packet)
 
-	logger.LogDebugf("ICB - Login packet for nick = %s - packet = %v - length = %d", nick, packet, len(packet)-1)
+	logger.LogTracef("ICB - Login packet for nick = %s - packet = %v - length = %d", nick, packet, len(packet)-1)
 
 	_, err := conn.Write(packet)
 	if err != nil {
@@ -565,7 +565,7 @@ func IcbSendCommand(conn net.Conn, args string) error {
 	packet := []byte(fmt.Sprintf("%sw\001%s", icbPacketType["M_COMMAND"], args))
 	packet = preprendPacketLength(packet)
 
-	logger.LogDebugf("ICB - Command packet args = '%s' - packet = %v - length = %d", args, packet, len(packet)-1)
+	logger.LogTracef("ICB - Command packet args = '%s' - packet = %v - length = %d", args, packet, len(packet)-1)
 
 	_, err := conn.Write(packet)
 	if err != nil {
@@ -583,7 +583,7 @@ func icbSendPing(conn net.Conn) error {
 	packet := []byte(icbPacketType["M_PING"])
 	packet = preprendPacketLength(packet)
 
-	logger.LogDebugf("ICB - Ping packet - packet = %v - length = %d", packet, len(packet)-1)
+	logger.LogTracef("ICB - Ping packet - packet = %v - length = %d", packet, len(packet)-1)
 
 	_, err := conn.Write(packet)
 	if err != nil {
