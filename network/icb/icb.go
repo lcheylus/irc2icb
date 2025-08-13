@@ -281,12 +281,6 @@ func parseIcbCommandOutput(fields []string, irc_conn net.Conn) error {
 		// TODO Parse fields for users listing
 		logger.LogDebugf("ICB - [User] fields = %q", fields[1:])
 		user, _ := icbParseUser(fields[1:])
-
-		// TODO Send IRC reply to NAMES command
-		if IcbMode == IcbModeNames {
-			logger.LogWarnf("ICB - Current group = '%s' - Users = %q", IcbGroupCurrent, (icbGetGroup(IcbGroupCurrent)).Users)
-		}
-
 		user.icbPrintUser()
 
 	// In a who listing, a line of output listing a group
