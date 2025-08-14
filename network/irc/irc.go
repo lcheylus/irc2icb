@@ -78,6 +78,17 @@ func getIrcReplyCode(val string) string {
 	return ""
 }
 
+// Get nick with prefix to reply to JOIN/NAMES command
+// Prefix format advertise via RPL_ISUPPORT code replies
+// Prefix = @ for operator, + for voice, none for regular user
+func IrcGetNickWithPrefix(nick string, moderator bool) string {
+	if moderator {
+		return fmt.Sprintf("@%s", nick)
+	} else {
+		return fmt.Sprintf("%s", nick)
+	}
+}
+
 // ircMessage represents a parsed IRC message
 type ircMessage struct {
 	Prefix   string // optional
