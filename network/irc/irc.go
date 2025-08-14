@@ -118,6 +118,9 @@ func ircParseMessage(line string) (*ircMessage, error) {
 }
 
 // Handle IRC command
+// Note: IRC/ICB replies must be in main code (prevent Go import cycle with
+// icb/irc packages)
+//
 // Inputs:
 //   - conn: handle to IRC client connection
 //   - data: datas received from IRC server
