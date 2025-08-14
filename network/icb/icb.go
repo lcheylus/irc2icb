@@ -327,7 +327,7 @@ func parseIcbStatus(category string, content string, icb_conn net.Conn, irc_conn
 			// TODO Wait for groups/users then send IRC JOIN message and list of
 			// users in ICB group
 			group := content[len(ICB_JOIN):]
-			logger.LogWarnf("ICB - Current group = '%s'", group)
+			logger.LogInfof("ICB - Current group = '%s'", group)
 
 			// For Debug
 			irc.IrcSendNotice(irc_conn, "*** :ICB Status Message: %s", content)
