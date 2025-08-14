@@ -215,8 +215,7 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 		logger.LogTracef("IRC - Received from client [%s]: %s", clientAddr, data)
 
 		// Handle IRC client commands
-		// ret, params := irc.IrcCommand(conn, data)
-		ret, _ := irc.IrcCommand(irc_conn, data)
+		ret, params := irc.IrcCommand(irc_conn, data)
 		switch ret {
 		case irc.IrcCommandPass:
 			logger.LogDebugf("IRC - password = '%s'", irc.IrcPassword)
@@ -237,6 +236,16 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			go icb.GetIcbPackets(icb_conn, irc_conn, icb_ch)
 		case irc.IrcCommandUser:
 			logger.LogDebugf("IRC - user = %s - realname = '%s'", irc.IrcUser, irc.IrcRealname)
+		case irc.IrcCommandJoin:
+			// TODO Handle case with multiple groups in JOIN command
+			var group string
+			if !strings.HasPrefix(params[0], "#") {
+				logger.LogErrorf("IRC - invalid group '%s' (don't start with #)", params[0])
+			} else {
+				group = params[0][1:]
+			}
+			logger.LogDebugf("IRC - JOIN command => send ICB command to join group '%s'", group)
+			icb.IcbSendGroup(icb_conn, group)
 		case irc.IrcCommandList:
 			// Channel to receive ICB groups list
 			icb.IcbGroupsChannel = make(chan []*icb.IcbGroup)

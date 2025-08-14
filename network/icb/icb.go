@@ -323,9 +323,15 @@ func parseIcbStatus(category string, content string, icb_conn net.Conn, irc_conn
 	case "Status":
 		if !strings.HasPrefix(content, ICB_JOIN) {
 			irc.IrcSendNotice(irc_conn, "*** :ICB Status Message: %s", content)
+		} else {
+			// TODO Wait for groups/users then send IRC JOIN message and list of
+			// users in ICB group
+			group := content[len(ICB_JOIN):]
+			logger.LogWarnf("ICB - Current group = '%s'", group)
+
+			// For Debug
+			irc.IrcSendNotice(irc_conn, "*** :ICB Status Message: %s", content)
 		}
-		// TODO Wait for groups/users then send IRC JOIN message and list of
-		// users in ICB group
 		return nil
 	case "No-Pass":
 		irc.IrcSendNotice(irc_conn, "*** :ICB Status Message: %s", content)
@@ -369,9 +375,6 @@ func icbHandleType(icb_conn net.Conn, msg icbPacket, irc_conn net.Conn) error {
 		logger.LogInfo("ICB - Logged to server for nick Foxy")
 		IcbLoggedIn = true
 
-		// Test: send ICB Command
-		// go timerCommand(conn)
-
 	// Open Message
 	case icbPacketType["M_OPEN"]:
 		logger.LogDebug("ICB - Received Open Message")
@@ -402,7 +405,7 @@ func icbHandleType(icb_conn net.Conn, msg icbPacket, irc_conn net.Conn) error {
 		logger.LogErrorf("ICB - Received Error Message packet - err = '%s'", fields[0])
 
 		// Forward error message to IRC client
-		irc.IrcSendNotice(irc_conn, "*** :ICB Error Message: %s",getIcbString(fields[0]))
+		irc.IrcSendNotice(irc_conn, "*** :ICB Error Message: %s", getIcbString(fields[0]))
 
 		// TODO Handle case if ICB connection not closed/reset
 		// => ICB Error "Nickname already in use." with reconnection
@@ -527,13 +530,11 @@ func preprendPacketLength(packet []byte) []byte {
 // Thus the ICB Login Packet has the following layout:
 // aLoginid^ANickname^ADefaultGroup^ACommand^APassword^AGroupStatus^AProtocolLevel
 func icbSendLogin(conn net.Conn, nick string, username string) error {
-	// id := "fox"
-	// TODO Handle case if group == ""
-	group := "slac"
+	group := ""
 	login_cmd := "login"
 
 	// TODO Handle password as input
-	packet := []byte(fmt.Sprintf("%s%s\001%s\001%s\001%s\001f_pass", icbPacketType["M_LOGIN"], username, nick, group, login_cmd))
+	packet := []byte(fmt.Sprintf("%s%s\001%s\001%s\001%s\001f_pass\001\001", icbPacketType["M_LOGIN"], username, nick, group, login_cmd))
 
 	// Add packet length as prefix
 	if len(packet) > 255 {
@@ -576,6 +577,26 @@ func IcbSendNames(conn net.Conn) error {
 	logger.LogInfo("ICB - Send command to get users")
 	IcbMode = IcbModeNames
 	err := IcbSendCommand(conn, "")
+
+	return err
+}
+
+// Send ICB command to join group
+func IcbSendGroup(conn net.Conn, group string) error {
+	logger.LogInfo("ICB - Send command to join group")
+
+	packet := []byte(fmt.Sprintf("%sg\001%s", icbPacketType["M_COMMAND"], group))
+	packet = preprendPacketLength(packet)
+
+	logger.LogTracef("ICB - Command packet group = '%s' - packet = %v - length = %d", group, packet, len(packet)-1)
+
+	_, err := conn.Write(packet)
+	if err != nil {
+		logger.LogDebugf("ICB - Error when sending Command packet to join group '%s'", group)
+		// TODO how to handle error if unable to send message
+	} else {
+		logger.LogDebug("ICB - Send Command packet (join group) to server")
+	}
 
 	return err
 }
