@@ -373,7 +373,7 @@ func icbHandleType(icb_conn net.Conn, msg icbPacket, irc_conn net.Conn, icb_ch c
 		irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_MOTD"], ":- ICB server: %s", icbProtocolInfo.ServerId)
 		irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_ENDOFMOTD"], ":End of MOTD command")
 
-		logger.LogInfo("ICB - Logged to server for nick Foxy")
+		logger.LogInfof("ICB - Logged to server for nick %s", irc.IrcNick)
 		IcbLoggedIn = true
 
 	// Open Message
