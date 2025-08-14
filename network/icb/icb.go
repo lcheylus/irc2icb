@@ -245,6 +245,7 @@ func parseIcbGenericCommandOutput(data string, irc_conn net.Conn) {
 			// Send groups list via channel for IRC LIST command
 			IcbGroupsChannel <- IcbGroups
 		}
+		IcbMode = IcbModeNone
 
 	} else {
 		// Generic command output
@@ -316,6 +317,7 @@ func parseIcbStatus(category string, content string, irc_conn net.Conn) error {
 	if len(category) == 0 {
 		return fmt.Errorf("invalid Status message - no category defined")
 	}
+	// TODO Parse Status Message: Status, Arrive, Depart, Sign-Off, Name, Topic, Pass, Boot
 	switch category {
 	case "Status":
 		if !strings.HasPrefix(content, ICB_JOIN) {
@@ -389,7 +391,6 @@ func icbHandleType(icb_conn net.Conn, msg icbPacket, irc_conn net.Conn) error {
 		category := getIcbString(fields[0])
 		content := getIcbString(fields[1])
 		logger.LogTracef("ICB - Received Status Message packet - category = %s - content = '%s'", category, content)
-		// TODO Parse Status Message: Status, Arrive, Depart, Sign-Off, Name, Topic, Pass, Boot
 		err := parseIcbStatus(category, content, irc_conn)
 		if err != nil {
 			logger.LogErrorf("ICB - invalid Status Message packet - err = %s", err.Error())
@@ -550,6 +551,10 @@ func icbSendLogin(conn net.Conn, nick string, username string) error {
 
 // Send ICB command to get groups
 func IcbSendList(conn net.Conn) error {
+	if IcbMode != IcbModeNone {
+		return nil
+	}
+
 	logger.LogInfo("ICB - Send command to get groups")
 	IcbMode = IcbModeList
 	err := IcbSendCommand(conn, "-g")
@@ -559,6 +564,10 @@ func IcbSendList(conn net.Conn) error {
 
 // Send ICB command to get users
 func IcbSendNames(conn net.Conn) error {
+	if IcbMode != IcbModeNone {
+		return nil
+	}
+
 	logger.LogInfo("ICB - Send command to get users")
 	IcbMode = IcbModeNames
 	err := IcbSendCommand(conn, "")
