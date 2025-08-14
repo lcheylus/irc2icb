@@ -28,6 +28,7 @@ const (
 	IrcCommandNick
 	IrcCommandPass
 	IrcCommandUser
+	IrcCommandJoin
 	IrcCommandList
 	IrcCommandQuit
 	IrcCommandUnknown
@@ -141,6 +142,10 @@ func IrcCommand(conn net.Conn, data string) (int, []string) {
 		IrcRealname = msg.Trailing
 		logger.LogDebugf("IRC - Received USER command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
 		return IrcCommandUser, []string{IrcUser, IrcRealname}
+	case "JOIN":
+		logger.LogDebugf("IRC - Received JOIN command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
+		// TODO Handle case with multiple groups in params
+		return IrcCommandJoin, []string{msg.Params[0]}
 	case "QUIT":
 		logger.LogDebugf("IRC - Received QUIT command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
 		return IrcCommandQuit, nil
@@ -158,7 +163,6 @@ func IrcCommand(conn net.Conn, data string) (int, []string) {
 		logger.LogWarnf("IRC - Received unknown command '%s'", msg.Command)
 	}
 
-	// JOIN
 	// PART
 	// PRIVMSG
 
