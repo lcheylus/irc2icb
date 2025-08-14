@@ -312,8 +312,9 @@ func parseIcbCommandOutput(fields []string, irc_conn net.Conn) error {
 // Inputs:
 // - category (string): category for the message
 // - content (string): content of the message
+// - icb_conn (net.Conn): connection to ICB server
 // - irc_conn (net.Conn): connection to IRC client
-func parseIcbStatus(category string, content string, irc_conn net.Conn) error {
+func parseIcbStatus(category string, content string, icb_conn net.Conn, irc_conn net.Conn) error {
 	if len(category) == 0 {
 		return fmt.Errorf("invalid Status message - no category defined")
 	}
@@ -391,7 +392,7 @@ func icbHandleType(icb_conn net.Conn, msg icbPacket, irc_conn net.Conn) error {
 		category := getIcbString(fields[0])
 		content := getIcbString(fields[1])
 		logger.LogTracef("ICB - Received Status Message packet - category = %s - content = '%s'", category, content)
-		err := parseIcbStatus(category, content, irc_conn)
+		err := parseIcbStatus(category, content, icb_conn, irc_conn)
 		if err != nil {
 			logger.LogErrorf("ICB - invalid Status Message packet - err = %s", err.Error())
 		}
