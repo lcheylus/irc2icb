@@ -266,10 +266,21 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			// Loop to read ICB packets from server
 			logger.LogInfo("ICB - Start loop to read packets from server")
 			go icb.GetIcbPackets(icb_conn, irc_conn, icb_ch)
+
 		case irc.IrcCommandUser:
 			logger.LogDebugf("IRC - user = %s - realname = '%s'", irc.IrcUser, irc.IrcRealname)
+
 		case irc.IrcCommandJoin:
-			// TODO Handle case with multiple groups in JOIN command
+			// TODO Handle special case with params == '0' => client leave all channels
+
+			// With ICB protocol, only one current group
+			// Format for JOIN paramaters: "<channel>{,<channel>} [<key>{,<key>}]"
+			if len(strings.Split(params[0], ",")) > 1 {
+				logger.LogError("IRC - Only one unique ICB group for JOIN command")
+				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["ERR_NEEDMOREPARAMS"], "JOIN :Only one unique ICB group for join")
+				break
+			}
+
 			var group string
 			if !strings.HasPrefix(params[0], "#") {
 				logger.LogErrorf("IRC - invalid group '%s' (don't start with #)", params[0])
@@ -278,6 +289,7 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			}
 			logger.LogDebugf("IRC - JOIN command => send ICB command to join group '%s'", group)
 			icb.IcbSendGroup(icb_conn, group)
+
 		case irc.IrcCommandList:
 			// Channel to receive ICB groups list
 			icb.IcbGroupsChannel = make(chan []*icb.IcbGroup)

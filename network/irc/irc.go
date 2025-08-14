@@ -55,6 +55,7 @@ var IrcReplyCodes = map[string]string{
 	"RPL_LIST":      "322",
 	"RPL_LISTEND":   "323",
 
+	"ERR_NEEDMOREPARAMS": "461",
 	"ERR_PASSWDMISMATCH": "464",
 }
 
@@ -137,30 +138,30 @@ func IrcCommand(conn net.Conn, data string) (int, []string) {
 	switch msg.Command {
 	case "PASS":
 		IrcPassword = msg.Params[0]
-		logger.LogDebugf("IRC - Received PASS command  - password = %s", IrcPassword)
+		logger.LogTracef("IRC - Received PASS command  - password = %s", IrcPassword)
 		return IrcCommandPass, []string{IrcPassword}
 	case "NICK":
 		IrcNick = msg.Params[0]
-		logger.LogDebugf("IRC - Received NICK command  - nick = %s", IrcNick)
+		logger.LogTracef("IRC - Received NICK command  - nick = %s", IrcNick)
 		return IrcCommandNick, []string{IrcNick}
 	case "USER":
 		IrcUser = msg.Params[0]
 		IrcRealname = msg.Trailing
-		logger.LogDebugf("IRC - Received USER command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
+		logger.LogTracef("IRC - Received USER command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
 		return IrcCommandUser, []string{IrcUser, IrcRealname}
 	case "JOIN":
-		logger.LogDebugf("IRC - Received JOIN command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
+		logger.LogTracef("IRC - Received JOIN command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
 		// TODO Handle case with multiple groups in params
-		return IrcCommandJoin, []string{msg.Params[0]}
+		return IrcCommandJoin, msg.Params
 	case "QUIT":
-		logger.LogDebugf("IRC - Received QUIT command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
+		logger.LogTracef("IRC - Received QUIT command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
 		return IrcCommandQuit, nil
 	case "PING":
-		logger.LogDebugf("IRC - Received PING command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
+		logger.LogTracef("IRC - Received PING command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
 		return IrcCommandPing, []string{msg.Params[0]}
 	// Send fake reply for LIST command
 	case "LIST":
-		logger.LogDebugf("IRC - Received LIST command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
+		logger.LogTracef("IRC - Received LIST command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
 		return IrcCommandList, nil
 	default:
 		logger.LogWarnf("IRC - Received unknown command '%s'", msg.Command)
