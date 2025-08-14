@@ -93,7 +93,7 @@ func getIcbPacketType(val string) string {
 // Inputs:
 // - icb_conn (net.Conn): handle for connection to ICB server
 // - irc_conn (net.Conn): handle for connection to IRC client
-// - icb_closed (chan bool): channel to close connection to ICB server
+// - icb_close (chan bool): channel to close connection to ICB server
 // TODO return code for errors
 // TODO Add SetReadDeadline for conn and check time-out
 func GetIcbPackets(icb_conn net.Conn, irc_conn net.Conn, icb_close chan struct{}) {
@@ -398,7 +398,11 @@ func icbHandleType(icb_conn net.Conn, msg icbPacket, irc_conn net.Conn) error {
 	// Error Message
 	case icbPacketType["M_ERROR"]:
 		fields := getIcbPacketFields(msg.Data)
-		logger.LogErrorf("ICB - Received Error Message packet - err = %s", fields[0])
+		logger.LogErrorf("ICB - Received Error Message packet - err = '%s'", fields[0])
+
+		// Forward error message to IRC client
+		irc.IrcSendNotice(irc_conn, "*** :ICB Error Message: %s",getIcbString(fields[0]))
+
 		// TODO Handle case if ICB connection not closed/reset
 		// => ICB Error "Nickname already in use." with reconnection
 	// Important Message
