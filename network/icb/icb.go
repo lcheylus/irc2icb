@@ -93,7 +93,7 @@ func getIcbPacketType(val string) string {
 // Inputs:
 // - icb_conn (net.Conn): handle for connection to ICB server
 // - irc_conn (net.Conn): handle for connection to IRC client
-// - icb_close (chan bool): channel to close connection to ICB server
+// - icb_close (chan struct{}): channel to close connection to ICB server
 // TODO return code for errors
 // TODO Add SetReadDeadline for conn and check time-out
 func GetIcbPackets(icb_conn net.Conn, irc_conn net.Conn, icb_close chan struct{}) {
@@ -126,7 +126,7 @@ func GetIcbPackets(icb_conn net.Conn, irc_conn net.Conn, icb_close chan struct{}
 			}
 
 			// TODO check errors
-			icbHandleType(icb_conn, *msg, irc_conn)
+			icbHandleType(icb_conn, *msg, irc_conn, icb_close)
 		}
 	}
 
@@ -348,7 +348,8 @@ func parseIcbStatus(category string, content string, icb_conn net.Conn, irc_conn
 // - icb_conn (net.Conn): handle for connection to ICB server
 // - msg (icbPacket): ICB packet received
 // - irc_conn (net.Conn): handle for connection to IRC client
-func icbHandleType(icb_conn net.Conn, msg icbPacket, irc_conn net.Conn) error {
+// - icb_close (chan struct{}): channel to close connection to ICB server
+func icbHandleType(icb_conn net.Conn, msg icbPacket, irc_conn net.Conn, icb_ch chan struct{}) error {
 	switch string(msg.Type) {
 	// Login
 	case icbPacketType["M_LOGINOK"]:
@@ -419,7 +420,8 @@ func icbHandleType(icb_conn net.Conn, msg icbPacket, irc_conn net.Conn) error {
 	case icbPacketType["M_EXIT"]:
 		logger.LogDebug("ICB - Received Exit packet")
 		IcbLoggedIn = false
-		// TODO Close connection and exit
+		// Send signal for closed ICB connection
+		close(icb_ch)
 	// Command Output
 	case icbPacketType["M_CMDOUT"]:
 		logger.LogDebug("ICB - Received Command Output packet")
