@@ -42,6 +42,7 @@ var IrcReplyCodes = map[string]string{
 	"RPL_YOURHOST": "002",
 	"RPL_CREATED":  "003",
 	"RPL_MYINFO":   "004",
+	"RPL_ISUPPORT": "005",
 
 	"RPL_AWAY":    "301",
 	"RPL_UNAWAY":  "305",
@@ -54,6 +55,10 @@ var IrcReplyCodes = map[string]string{
 	"RPL_LISTSTART": "321",
 	"RPL_LIST":      "322",
 	"RPL_LISTEND":   "323",
+
+	"RPL_TOPIC":      "332",
+	"RPL_NAMREPLY":   "353",
+	"RPL_ENDOFNAMES": "366",
 
 	"ERR_NEEDMOREPARAMS": "461",
 	"ERR_PASSWDMISMATCH": "464",
