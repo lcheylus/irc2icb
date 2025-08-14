@@ -621,6 +621,24 @@ func IcbSendCommand(conn net.Conn, args string) error {
 	return err
 }
 
+// Send ICB No-op packet
+func IcbSendNoop(conn net.Conn) error {
+	packet := []byte(icbPacketType["M_NOOP"])
+	packet = preprendPacketLength(packet)
+
+	logger.LogTracef("ICB - No-op packet - packet = %v - length = %d", packet, len(packet)-1)
+
+	_, err := conn.Write(packet)
+	if err != nil {
+		logger.LogDebugf("ICB - Error when sending No-op packet")
+		// TODO how to handle error if unable to send message
+	} else {
+		logger.LogDebugf("ICB - Send No-op packet to server")
+	}
+
+	return err
+}
+
 // Send ICB Ping packet
 func icbSendPing(conn net.Conn) error {
 	packet := []byte(icbPacketType["M_PING"])

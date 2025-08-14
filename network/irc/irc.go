@@ -30,6 +30,7 @@ const (
 	IrcCommandUser
 	IrcCommandJoin
 	IrcCommandList
+	IrcCommandPing
 	IrcCommandQuit
 	IrcCommandUnknown
 )
@@ -153,10 +154,7 @@ func IrcCommand(conn net.Conn, data string) (int, []string) {
 		return IrcCommandQuit, nil
 	case "PING":
 		logger.LogDebugf("IRC - Received PING command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
-		// TODO Send ICB No-Op packet
-		IrcSendMsg(conn, "PONG %s", msg.Params[0])
-		logger.LogDebugf("IRC - Send PONG message")
-		return IrcCommandNop, nil
+		return IrcCommandPing, []string{msg.Params[0]}
 	// Send fake reply for LIST command
 	case "LIST":
 		logger.LogDebugf("IRC - Received LIST command  - params = %s - trailing = %s", msg.Params, msg.Trailing)

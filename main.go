@@ -306,6 +306,10 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 		case irc.IrcCommandQuit:
 			logger.LogInfof("IRC - Client disconnected: %s\n", clientAddr)
 			close(icb_ch)
+		case irc.IrcCommandPing:
+			logger.LogDebugf("IRC - Send PONG message")
+			irc.IrcSendMsg(irc_conn, "PONG %s", params[0])
+			icb.IcbSendNoop(icb_conn)
 
 		case irc.IrcCommandUnknown:
 		default:
