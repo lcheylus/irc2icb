@@ -460,7 +460,7 @@ func icbHandleType(icb_conn net.Conn, msg icbPacket, irc_conn net.Conn, icb_ch c
 		logger.LogDebugf("ICB - ICB Host ID = %s", icbProtocolInfo.HostId)
 		logger.LogDebugf("ICB - ICB Server ID = %s", icbProtocolInfo.ServerId)
 
-		icbSendLogin(icb_conn, irc.IrcNick, irc.IrcUser)
+		icbSendLogin(icb_conn, irc.IrcNick, irc.IrcUser, irc.IrcPassword)
 	// Beep
 	case icbPacketType["M_BEEP"]:
 		fields := getIcbPacketFields(msg.Data)
@@ -513,6 +513,7 @@ func preprendPacketLength(packet []byte) []byte {
 // Inputs:
 // - conn (net.Conn): connection to ICB server
 // - nick (string): nickname for login
+// - pass (string): password for login
 // - username (string): username for login
 //
 // Format for login packet (client to server)
@@ -531,12 +532,11 @@ func preprendPacketLength(packet []byte) []byte {
 //
 // Thus the ICB Login Packet has the following layout:
 // aLoginid^ANickname^ADefaultGroup^ACommand^APassword^AGroupStatus^AProtocolLevel
-func icbSendLogin(conn net.Conn, nick string, username string) error {
+func icbSendLogin(conn net.Conn, nick string, pass string, username string) error {
 	group := ""
 	login_cmd := "login"
 
-	// TODO Handle password as input
-	packet := []byte(fmt.Sprintf("%s%s\001%s\001%s\001%s\001f_pass\001\001", icbPacketType["M_LOGIN"], username, nick, group, login_cmd))
+	packet := []byte(fmt.Sprintf("%s%s\001%s\001%s\001%s\001%s\001\001", icbPacketType["M_LOGIN"], username, nick, group, login_cmd, pass))
 
 	// Add packet length as prefix
 	if len(packet) > 255 {

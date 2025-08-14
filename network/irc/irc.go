@@ -53,6 +53,8 @@ var IrcReplyCodes = map[string]string{
 	"RPL_LISTSTART": "321",
 	"RPL_LIST":      "322",
 	"RPL_LISTEND":   "323",
+
+	"ERR_PASSWDMISMATCH": "464",
 }
 
 // Get IRC reply code by key (RPL_xxx)

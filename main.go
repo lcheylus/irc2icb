@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"unicode"
 
 	logger "irc2icb/utils"
 	optparse "irc2icb/utils"
@@ -181,6 +182,16 @@ func handleSignals() {
 	os.Exit(0)
 }
 
+// Check if a string contains only alphanumeric chars
+func isAlphanumeric(s string) bool {
+	for _, c := range s {
+		if !unicode.IsLetter(c) && !unicode.IsDigit(c) {
+			return false
+		}
+	}
+	return true
+}
+
 // Keep this function in main, instead of irc package
 // => prevents issue with "Cycle not allowed" between irc and icb packages
 //
@@ -192,6 +203,7 @@ func handleSignals() {
 func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int) {
 	var icb_conn net.Conn
 	var icb_ch chan struct{}
+	var password_invalid bool = false
 
 	defer irc_conn.Close()
 
@@ -219,7 +231,27 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 		switch ret {
 		case irc.IrcCommandPass:
 			logger.LogDebugf("IRC - password = '%s'", irc.IrcPassword)
+
+			// ICB password max length = 12 and contains only alphanumeric chars
+			if len(irc.IrcPassword) < 1 || len(irc.IrcPassword) > 12 {
+				password_invalid = true
+				logger.LogErrorf("IRC - Password '%s' invalid: must be between 1 and 12 chars", irc.IrcPassword)
+				irc.IrcSendCode(irc_conn, "Error", irc.IrcReplyCodes["ERR_PASSWDMISMATCH"], ":ICB password must be between 1 and 12 characters.")
+			} else if !isAlphanumeric(irc.IrcPassword) {
+				password_invalid = true
+				logger.LogErrorf("IRC - Password '%s' invalid: must contain only alphanumeric chars", irc.IrcPassword)
+				irc.IrcSendCode(irc_conn, "Error", irc.IrcReplyCodes["ERR_PASSWDMISMATCH"], ":ICB password must contain only alphanumeric characters.")
+			}
 		case irc.IrcCommandNick:
+			// Check if password is defined and valid (parsed from IRC PASS command)
+			if len(irc.IrcPassword) == 0 {
+				irc.IrcSendMsg(irc_conn, "ERROR :ICB password must be defined for nick "+irc.IrcNick)
+				logger.LogError("ICB password must be defined for nick " + irc.IrcNick)
+				break
+			}
+			if password_invalid {
+				break
+			}
 			// TODO Handle case if already connected to ICB server
 			// Connection to ICB server
 			icb_conn = icb.IcbConnect(server_addr, server_port)
