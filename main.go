@@ -284,6 +284,7 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			var group string
 			if !strings.HasPrefix(params[0], "#") {
 				logger.LogErrorf("IRC - invalid group '%s' (don't start with #)", params[0])
+				irc.IrcSendMsg(irc_conn, "ERROR :Invalid syntax for group '%s' in join (must start with #)", params[0])
 				break
 			} else {
 				group = params[0][1:]
