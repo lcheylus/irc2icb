@@ -364,6 +364,12 @@ func icbHandleType(icb_conn net.Conn, msg icbPacket, irc_conn net.Conn, icb_ch c
 		irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_CREATED"], ":This server was created recently")
 		irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_MYINFO"], "localhost %s-%s", version.Name, version.Version)
 
+		// Send reply to advertise Support with prefix
+		// Message format: "<client> <1-13 tokens> :are supported by this server"
+		// TODO Send other parameters according to
+		// https://defs.ircdocs.horse/defs/isupport.html (NETWORK, CHANTYPES)
+		irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_ISUPPORT"], "PREFIX=(ov)@+ :are supported by this server")
+
 		// Send MOTD (message of the day)
 		irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_MOTDSTART"], ":- %s Message of the day - ", "localhost")
 		irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_MOTD"], ":- Proxy for IRC client to ICB network")
