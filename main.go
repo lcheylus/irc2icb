@@ -316,8 +316,11 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			// Send IRC JOIN message with private hostname
 			irc.IrcSendJoin(irc_conn, irc.IrcNick, icb_user.Username, icb_user.Hostname, true, channel)
 
-			// TODO Send RPL_NOTOPIC (331) if Topic is "None"
-			irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_TOPIC"], fmt.Sprintf("%s :%s", channel, icb_group.Topic))
+			if icb_group.Topic != "(None)" {
+				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_TOPIC"], fmt.Sprintf("%s :%s", channel, icb_group.Topic))
+			} else {
+				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_NOTOPIC"], fmt.Sprintf("%s :No topic is set", channel))
+			}
 
 			// A list of users currently joined to the channel (with one or more RPL_NAMREPLY (353) numerics
 			// followed by a single RPL_ENDOFNAMES (366) numeric).
