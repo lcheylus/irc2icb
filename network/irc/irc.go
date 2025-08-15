@@ -30,6 +30,7 @@ const (
 	IrcCommandUser
 	IrcCommandJoin
 	IrcCommandList
+	IrcCommandMsg // Type for private messages and to a channel/group
 	IrcCommandPing
 	IrcCommandQuit
 	IrcCommandUnknown
@@ -60,6 +61,9 @@ var IrcReplyCodes = map[string]string{
 	"RPL_TOPIC":      "332",
 	"RPL_NAMREPLY":   "353",
 	"RPL_ENDOFNAMES": "366",
+
+	"ERR_NOSUCHCHANNEL":    "403",
+	"ERR_CANNOTSENDTOCHAN": "404",
 
 	"ERR_NEEDMOREPARAMS": "461",
 	"ERR_PASSWDMISMATCH": "464",
@@ -153,6 +157,9 @@ func IrcCommand(conn net.Conn, data string) (int, []string) {
 	}
 
 	switch msg.Command {
+	case "PRIVMSG":
+		logger.LogTracef("IRC - Received PRIVMSG command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
+		return IrcCommandMsg, []string{msg.Params[0], msg.Trailing}
 	case "PASS":
 		IrcPassword = msg.Params[0]
 		logger.LogTracef("IRC - Received PASS command  - password = %s", IrcPassword)
@@ -170,6 +177,9 @@ func IrcCommand(conn net.Conn, data string) (int, []string) {
 		logger.LogTracef("IRC - Received JOIN command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
 		// TODO Handle case with multiple groups in params
 		return IrcCommandJoin, msg.Params
+	case "LIST":
+		logger.LogTracef("IRC - Received LIST command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
+		return IrcCommandList, nil
 	case "QUIT":
 		logger.LogTracef("IRC - Received QUIT command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
 		return IrcCommandQuit, nil
@@ -177,9 +187,6 @@ func IrcCommand(conn net.Conn, data string) (int, []string) {
 		logger.LogTracef("IRC - Received PING command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
 		return IrcCommandPing, []string{msg.Params[0]}
 	// Send fake reply for LIST command
-	case "LIST":
-		logger.LogTracef("IRC - Received LIST command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
-		return IrcCommandList, nil
 	default:
 		logger.LogWarnf("IRC - Received unknown command '%s'", msg.Command)
 	}
@@ -188,6 +195,16 @@ func IrcCommand(conn net.Conn, data string) (int, []string) {
 	// PRIVMSG
 
 	return IrcCommandUnknown, []string{msg.Command}
+}
+
+// Send message to IRC connection
+// Inputs:
+// - src (string): source
+// - dst (string): destination
+// - msg (string): content
+func IrcSendMsg(conn net.Conn, src string, dst string, msg string) error {
+	_, err := conn.Write([]byte(fmt.Sprintf(":%s PRIVMSG %s :%s\r\n", src, dst, msg)))
+	return err
 }
 
 // Send JOIN message to IRC connection

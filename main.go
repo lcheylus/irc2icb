@@ -229,6 +229,24 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 		// Handle IRC client commands
 		ret, params := irc.IrcCommand(irc_conn, data)
 		switch ret {
+		case irc.IrcCommandMsg:
+			src := params[0]
+			content := params[1]
+			logger.LogTracef("IRC - Received message source = '%s' - content = '%s'", src, content)
+
+			// Message sent to group
+			if strings.HasPrefix(src, "#") {
+				group := src[1:]
+				logger.LogInfof("IRC - Send message in group '%s'", group)
+
+				if icb.IcbGroupCurrent != group {
+					irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["ERR_NOSUCHCHANNEL"], "%s :No such channel", src)
+				}
+
+				icb.IcbSendOpenmsg(icb_conn, content)
+			}
+			// TODO Case for private message
+
 		case irc.IrcCommandPass:
 			logger.LogDebugf("IRC - password = '%s'", irc.IrcPassword)
 

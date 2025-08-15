@@ -392,6 +392,10 @@ func icbHandleType(icb_conn net.Conn, msg icbPacket, irc_conn net.Conn, icb_clos
 		nickname := getIcbString(fields[0])
 		content := getIcbString(fields[1])
 		logger.LogTracef("ICB - Received Open Message packet - nickname = %s - content = '%s'", nickname, content)
+
+		logger.LogInfof("ICB - Send message from nickname = %s", nickname)
+		irc.IrcSendMsg(irc_conn, nickname, "#"+IcbGroupCurrent, content)
+
 	// Personal Message
 	case icbPacketType["M_PERSONAL"]:
 		logger.LogDebug("Received ICB Personal Message")
@@ -518,6 +522,29 @@ func preprendPacketLength(packet []byte) []byte {
 	packet[0] = byte(len(packet) - 1)
 
 	return packet
+}
+
+// Send ICB command for open message (to a channel/group)
+func IcbSendOpenmsg(conn net.Conn, msg string) error {
+	logger.LogInfo("ICB - Send command for Open Message packet")
+
+	// TODO Check max size for msg and return error if too long
+	// MAX_SIZE_MSG = 246
+
+	packet := []byte(fmt.Sprintf("%s%s", icbPacketType["M_OPEN"], msg))
+	packet = preprendPacketLength(packet)
+
+	logger.LogTracef("ICB - Open Message packet msg = '%s' - packet = %v - length = %d", msg, packet, len(packet)-1)
+
+	_, err := conn.Write(packet)
+	if err != nil {
+		logger.LogDebugf("ICB - Error when sending Open Message packet")
+		// TODO how to handle error if unable to send message
+	} else {
+		logger.LogDebug("ICB - Send Open Message packet to server")
+	}
+
+	return err
 }
 
 // Send ICB "login" packet
