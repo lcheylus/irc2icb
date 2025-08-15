@@ -14,14 +14,15 @@ import (
 var (
 	IcbGroups       []*IcbGroup // List of ICB groups
 	IcbGroupCurrent string      // Name of current group (for LIST and NAMES replies)
+	IcbUsers        []*IcbUser  // List of ICB users
 
 	icbGroupReceivedCurrent string        // Name of current group parsed from ICB Generic Command Output
 	icbGroupsReceived       chan struct{} // Channel to signal reception of groups list
 	icbUsersReceived        chan struct{} // Channel to signal reception of groups list with users
 )
 
-// icbUser represents a ICB User (datas parsed for Command packet, type='wl')
-type icbUser struct {
+// IcbUser represents a ICB User (datas parsed for Command packet, type='wl')
+type IcbUser struct {
 	Moderator bool
 	Nick      string
 	Idle      int
@@ -78,7 +79,7 @@ func icbGroupIsPresent(group *IcbGroup) bool {
 // Get group by name in list of groups
 // Inputs:
 // - name (string): name of group to find
-// Return pointer to IcbGroupd found, nil if none
+// Return pointer to IcbGroup found, nil if none
 func IcbGetGroup(name string) *IcbGroup {
 	for _, group := range IcbGroups {
 		if group.Name == name {
@@ -111,8 +112,38 @@ func stringToTime(s string) (time.Time, error) {
 	return time.Unix(sec, 0), nil
 }
 
+// Add user in global list of users
+func icbAddUser(user *IcbUser) {
+	IcbUsers = append(IcbUsers, user)
+}
+
+// Check if a user is not already in users list, query by nick
+// Return true is user already in users list, false if not
+func icbUserIsPresent(user *IcbUser) bool {
+	for _, tmp_user := range IcbUsers {
+		if tmp_user.Nick == user.Nick {
+			return true
+		}
+	}
+	return false
+}
+
+// Get user by nick in list of users
+// Inputs:
+// - nick (string): nick of user to find
+// Return pointer to IcbGroup found, nil if none
+func IcbGetUser(nick string) *IcbUser {
+	for _, user := range IcbUsers {
+		if user.Nick == nick {
+			return user
+		}
+	}
+	logger.LogWarnf("ICB - [icbGetUser] unable to find user for nick '%s' in list of users", nick)
+	return nil
+}
+
 // Print ICB User
-func (user *icbUser) icbPrintUser() {
+func (user *IcbUser) icbPrintUser() {
 	logger.LogDebugf("ICB - [User] Moderator = %v", user.Moderator)
 	logger.LogDebugf("ICB - [User] Nick = %s", user.Nick)
 	logger.LogDebugf("ICB - [User] Idle = %d", user.Idle)
@@ -124,12 +155,12 @@ func (user *icbUser) icbPrintUser() {
 }
 
 // Parse Command Output for type = 'wl' and returns ICB User parsed from data
-func icbParseUser(fields []string) (*icbUser, error) {
+func icbParseUser(fields []string) (*IcbUser, error) {
 	if len(fields) != 8 {
 		return nil, fmt.Errorf("invalid number of fields for user - len(fields) = %d", len(fields))
 	}
 	var err error
-	user := &icbUser{}
+	user := &IcbUser{}
 
 	// Check if moderator ('m' or '*')
 	user.Moderator = false

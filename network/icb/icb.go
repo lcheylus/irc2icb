@@ -280,7 +280,12 @@ func parseIcbCommandOutput(fields []string, irc_conn net.Conn) error {
 		// TODO Parse fields for users listing
 		logger.LogDebugf("ICB - [User] fields = %q", fields[1:])
 		user, _ := icbParseUser(fields[1:])
+		// Check if group already present in IcbGroups list
 		user.icbPrintUser()
+		if !icbUserIsPresent(user) {
+			icbAddUser(user)
+			logger.LogDebugf("ICB - Add user for nick '%s' to list of users", user.Nick)
+		}
 
 	// In a who listing, a line of output listing a group
 	case "wg":
