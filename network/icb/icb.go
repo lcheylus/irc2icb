@@ -409,18 +409,20 @@ func icbHandleType(icb_conn net.Conn, msg icbPacket, irc_conn net.Conn, icb_clos
 	case icbPacketType["M_ERROR"]:
 		fields := getIcbPacketFields(msg.Data)
 		logger.LogErrorf("ICB - Received Error Message packet - err = '%s'", fields[0])
-
-		// Forward error message to IRC client
 		irc.IrcSendMsg(irc_conn, "ERROR :"+fmt.Sprintf("ICB Error Message: %s", getIcbString(fields[0])))
 
 		// TODO Handle case if ICB connection not closed/reset
 		// => ICB Error "Nickname already in use." with reconnection
+
 	// Important Message
+	// Example: category = Mod - content = 'You are still mod of group couch'
+	// TODO Forward message to IRC client
 	case icbPacketType["M_IMPORTANT"]:
 		fields := getIcbPacketFields(msg.Data)
 		category := getIcbString(fields[0])
 		content := getIcbString(fields[1])
 		logger.LogTracef("ICB - Received Important Message packet - category = %s - content = '%s'", category, content)
+		irc.IrcSendNotice(irc_conn, "*** :ICB Important Message: %s - %s", category, content)
 	// Exit
 	case icbPacketType["M_EXIT"]:
 		logger.LogDebug("ICB - Received Exit packet")
