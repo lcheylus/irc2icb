@@ -454,6 +454,9 @@ func main() {
 			config.LogFile = ""
 			logger.LogInfo("log file not used in debug mode")
 		}
+		if config.Verbose > 3 {
+			config.Verbose = 3
+		}
 	}
 
 	// Default value listen address
@@ -471,13 +474,12 @@ func main() {
 		config.ListenPort = 6667
 	}
 
-	logger.LogInfof("debug %t", config.Verbose)
-	logger.LogInfof("logfile %s", config.LogFile)
-	logger.LogInfof("conf-file %s", config.ConfigFile)
-	logger.LogInfof("listen-addr %s", config.ListenAddr)
-	logger.LogInfof("listen-port %d", config.ListenPort)
-	logger.LogInfof("server %s", config.Server)
-	logger.LogInfof("server-port %d", config.ServerPort)
+	logger.LogInfof("logfile = %s", config.LogFile)
+	logger.LogInfof("conf-file = %s", config.ConfigFile)
+	logger.LogInfof("listen-addr = %s", config.ListenAddr)
+	logger.LogInfof("listen-port = %d", config.ListenPort)
+	logger.LogInfof("server = %s", config.Server)
+	logger.LogInfof("server-port = %d", config.ServerPort)
 
 	switch config.Verbose {
 	case 1:
