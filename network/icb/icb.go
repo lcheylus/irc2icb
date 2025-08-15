@@ -403,6 +403,10 @@ func icbHandleType(icb_conn net.Conn, msg icbPacket, irc_conn net.Conn, icb_clos
 		nickname := getIcbString(fields[0])
 		content := getIcbString(fields[1])
 		logger.LogTracef("ICB - Received Personal Message packet - nickname = %s - content = '%s'", nickname, content)
+
+		logger.LogInfof("ICB - Send message from nickname = %s", nickname)
+		irc.IrcSendMsg(irc_conn, nickname, irc.IrcNick, content)
+
 	// Status Message
 	case icbPacketType["M_STATUS"]:
 		fields := getIcbPacketFields(msg.Data)
@@ -542,6 +546,33 @@ func IcbSendOpenmsg(conn net.Conn, msg string) error {
 		// TODO how to handle error if unable to send message
 	} else {
 		logger.LogDebug("ICB - Send Open Message packet to server")
+	}
+
+	return err
+}
+
+// Send ICB command for personal message (private)
+// Inputs:
+// - conn (net.Conn): connection to ICB server
+// - nick (string): nickname for destination
+// - msg (string): content of the message
+func IcbSendPrivatemsg(conn net.Conn, nick string, msg string) error {
+	logger.LogInfo("ICB - Send command for Personal Message packet")
+
+	// TODO Check max size for msg and return error if too long
+	// MAX_SIZE_MSG = 246
+
+	packet := []byte(fmt.Sprintf("%sm\001%s %s", icbPacketType["M_COMMAND"], nick, msg))
+	packet = preprendPacketLength(packet)
+
+	logger.LogTracef("ICB - Personal Message packet msg = '%s' - packet = %v - length = %d", msg, packet, len(packet)-1)
+
+	_, err := conn.Write(packet)
+	if err != nil {
+		logger.LogDebugf("ICB - Error when sending Personal Message packet")
+		// TODO how to handle error if unable to send message
+	} else {
+		logger.LogDebug("ICB - Send Personal Message packet to server")
 	}
 
 	return err

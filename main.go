@@ -244,8 +244,11 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 				}
 
 				icb.IcbSendOpenmsg(icb_conn, content)
+			} else {
+				// Case for private message
+				logger.LogInfof("IRC - Send private message for nick '%s'", src)
+				icb.IcbSendPrivatemsg(icb_conn, src, content)
 			}
-			// TODO Case for private message
 
 		case irc.IrcCommandPass:
 			logger.LogDebugf("IRC - password = '%s'", irc.IrcPassword)
