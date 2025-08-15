@@ -58,6 +58,19 @@ func IcbQueryGroups(icb_conn net.Conn) {
 	// Wait reception of users via ICB
 	<-icbUsersReceived
 	logger.LogInfo("ICB - List of users received")
+
+	// Dump list of groups and users received from ICB server
+	var groups []string
+	var users []string
+
+	for _, group := range IcbGroups {
+		groups = append(groups, group.Name)
+	}
+	for _, user := range IcbUsers {
+		users = append(users, user.Nick)
+	}
+	logger.LogInfof("ICB - %d groups - %q", len(groups), groups)
+	logger.LogInfof("ICB - %d users - %q", len(users), users)
 }
 
 // Add group in global list of groups
