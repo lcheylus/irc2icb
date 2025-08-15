@@ -4,10 +4,20 @@ package icb
 
 import (
 	"fmt"
+	"net"
 	"strconv"
 	"time"
 
 	logger "irc2icb/utils"
+)
+
+var (
+	IcbGroups       []*IcbGroup // List of ICB groups
+	IcbGroupCurrent string      // Name of current group (for LIST and NAMES replies)
+
+	icbGroupReceivedCurrent string        // Name of current group parsed from ICB Generic Command Output
+	icbGroupsReceived       chan struct{} // Channel to signal reception of groups list
+	icbUsersReceived        chan struct{} // Channel to signal reception of groups list with users
 )
 
 // icbUser represents a ICB User (datas parsed for Command packet, type='wl')
@@ -29,6 +39,31 @@ type IcbGroup struct {
 	Users []string // List of users (by nick) member of this group
 }
 
+// Get ICB groups with users via ICB Command => import in IcbGroups (list of *IcbGroup pointers)
+// Inputs:
+// - icb_conn (net.Conn): connection to ICB server
+func IcbQueryGroups(icb_conn net.Conn) {
+	// Send ICB command to list groups
+	icbGroupsReceived = make(chan struct{})
+	IcbSendList(icb_conn)
+	// Wait reception of groups via ICB
+	<-icbGroupsReceived
+	logger.LogInfo("ICB - List of groups received")
+
+	// Send ICB command to list users
+	icbUsersReceived = make(chan struct{})
+	IcbSendNames(icb_conn)
+
+	// Wait reception of users via ICB
+	<-icbUsersReceived
+	logger.LogInfo("ICB - List of users received")
+}
+
+// Add group in global list of groups
+func icbAddGroup(group *IcbGroup) {
+	IcbGroups = append(IcbGroups, group)
+}
+
 // Check if a group is not already in groups list
 // Return true is group already in groups list, false if not
 func icbGroupIsPresent(group *IcbGroup) bool {
@@ -44,13 +79,13 @@ func icbGroupIsPresent(group *IcbGroup) bool {
 // Inputs:
 // - name (string): name of group to find
 // Return pointer to IcbGroupd found, nil if none
-func icbGetGroup(name string) *IcbGroup {
+func IcbGetGroup(name string) *IcbGroup {
 	for _, group := range IcbGroups {
 		if group.Name == name {
 			return group
 		}
 	}
-	logger.LogErrorf("ICB - [icbGetGroup] unable to find group '%s' in list of groups", name)
+	logger.LogWarnf("ICB - [icbGetGroup] unable to find group '%s' in list of groups", name)
 	return nil
 }
 
@@ -58,7 +93,7 @@ func icbGetGroup(name string) *IcbGroup {
 // Inputs:
 // - nick (string): user nick
 // Return true is user already in group, false if not
-func (group *IcbGroup) icbUserInGroup(nick string) bool {
+func (group *IcbGroup) IcbUserInGroup(nick string) bool {
 	for _, user := range group.Users {
 		if user == nick {
 			return true
@@ -85,10 +120,10 @@ func (user *icbUser) icbPrintUser() {
 	logger.LogDebugf("ICB - [User] Username = %s", user.Username)
 	logger.LogDebugf("ICB - [User] Hostname = %s", user.Hostname)
 	logger.LogDebugf("ICB - [User] Registration status = '%s'", user.RegStatus)
-	logger.LogDebugf("ICB - [User] Current group = '%s'", IcbGroupCurrent)
+	logger.LogDebugf("ICB - [User] Current group = '%s'", icbGroupReceivedCurrent)
 }
 
-// Parse Command Ouput for type = 'wl' and returns ICB User parsed from data
+// Parse Command Output for type = 'wl' and returns ICB User parsed from data
 func icbParseUser(fields []string) (*icbUser, error) {
 	if len(fields) != 8 {
 		return nil, fmt.Errorf("invalid number of fields for user - len(fields) = %d", len(fields))
@@ -120,11 +155,11 @@ func icbParseUser(fields []string) (*icbUser, error) {
 	user.Hostname = getIcbString(fields[6])
 	user.RegStatus = getIcbString(fields[7])
 
-	// Add user nick in current group if not already present
+	// Add user nick in current group parsed from ICB Generic Command Output if not already present
 	// TODO Check error (return == nil)
-	group := icbGetGroup(IcbGroupCurrent)
+	group := IcbGetGroup(icbGroupReceivedCurrent)
 
-	if !group.icbUserInGroup(user.Nick) {
+	if !group.IcbUserInGroup(user.Nick) {
 		group.Users = append(group.Users, user.Nick)
 	}
 

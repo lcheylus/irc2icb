@@ -57,16 +57,10 @@ type icbProtocolInfos struct {
 
 // Variables for ICB connection
 var (
-	IcbLoggedIn bool // ICB logged in status
+	icbLoggedIn bool = false       // ICB logged in status
+	IcbMode     int  = IcbModeNone // ICB mode to reply to IRC commands
 
-	IcbGroups         []*IcbGroup      // List of ICB groups
-	IcbGroupsReceived chan struct{}    // Channel to signal reception of groups list
-	IcbGroupsChannel  chan []*IcbGroup // Channel to send groups list
-
-	IcbGroupCurrent string               // Name of current group (for LIST and NAMES replies)
-	IcbMode         int    = IcbModeNone // ICB mode to reply to IRC commands
-
-	icbProtocolInfo icbProtocolInfos
+	icbProtocolInfo icbProtocolInfos // Infos for ICB server
 )
 
 // icbPacket represents a parsed ICB packet
@@ -221,10 +215,13 @@ func parseIcbGenericCommandOutput(data string, irc_conn net.Conn) {
 
 		// Check if group already present in IcbGroups list
 		if !icbGroupIsPresent(group) {
-			IcbGroups = append(IcbGroups, group)
+			icbAddGroup(group)
 			logger.LogDebugf("ICB - Add group '%s' to list of groups", group.Name)
 		}
-		IcbGroupCurrent = group.Name
+
+		// Current name of group parsed from ICB datas
+		// Used to add in it after parsing users from ICB datas
+		icbGroupReceivedCurrent = group.Name
 
 	} else if strings.HasPrefix(data, "Total:") {
 		// Output for 'Total:'
@@ -237,13 +234,10 @@ func parseIcbGenericCommandOutput(data string, irc_conn net.Conn) {
 
 		if IcbMode == IcbModeList {
 			// Send signal for completion of ICB command to get groups
-			close(IcbGroupsReceived)
+			close(icbGroupsReceived)
 		} else if IcbMode == IcbModeNames {
-			// for _, group := range IcbGroups {
-			// 	logger.LogDebugf("ICB - [Group] Name = '%s' Topic = '%s' - %d users - Users = %q", group.Name, group.Topic, len(group.Users), group.Users)
-			// }
-			// Send groups list via channel for IRC LIST command
-			IcbGroupsChannel <- IcbGroups
+			// Send signal for completion of ICB command to get groups with users
+			close(icbUsersReceived)
 		}
 		IcbMode = IcbModeNone
 
@@ -318,18 +312,18 @@ func parseIcbStatus(category string, content string, icb_conn net.Conn, irc_conn
 	if len(category) == 0 {
 		return fmt.Errorf("invalid Status message - no category defined")
 	}
+
 	// TODO Parse Status Message: Status, Arrive, Depart, Sign-Off, Name, Topic, Pass, Boot
+	// "Timeout" "Foxy is now mod."
+	// "Idle-Mod" "A piano suddenly falls on sl'lee, dislodging moderatorship of couch."
+
 	switch category {
 	case "Status":
 		if !strings.HasPrefix(content, ICB_JOIN) {
 			irc.IrcSendNotice(irc_conn, "*** :ICB Status Message: %s", content)
 		} else {
-			// TODO Wait for groups/users then send IRC JOIN message and list of
-			// users in ICB group
 			group := content[len(ICB_JOIN):]
 			logger.LogInfof("ICB - Current group = '%s'", group)
-
-			// For Debug
 			irc.IrcSendNotice(irc_conn, "*** :ICB Status Message: %s", content)
 		}
 		return nil
@@ -349,7 +343,7 @@ func parseIcbStatus(category string, content string, icb_conn net.Conn, irc_conn
 // - msg (icbPacket): ICB packet received
 // - irc_conn (net.Conn): handle for connection to IRC client
 // - icb_close (chan struct{}): channel to close connection to ICB server
-func icbHandleType(icb_conn net.Conn, msg icbPacket, irc_conn net.Conn, icb_ch chan struct{}) error {
+func icbHandleType(icb_conn net.Conn, msg icbPacket, irc_conn net.Conn, icb_close chan struct{}) error {
 	switch string(msg.Type) {
 	// Login
 	case icbPacketType["M_LOGINOK"]:
@@ -380,7 +374,7 @@ func icbHandleType(icb_conn net.Conn, msg icbPacket, irc_conn net.Conn, icb_ch c
 		irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_ENDOFMOTD"], ":End of MOTD command")
 
 		logger.LogInfof("ICB - Logged to server for nick %s", irc.IrcNick)
-		IcbLoggedIn = true
+		icbLoggedIn = true
 
 	// Open Message
 	case icbPacketType["M_OPEN"]:
@@ -425,9 +419,9 @@ func icbHandleType(icb_conn net.Conn, msg icbPacket, irc_conn net.Conn, icb_ch c
 	// Exit
 	case icbPacketType["M_EXIT"]:
 		logger.LogDebug("ICB - Received Exit packet")
-		IcbLoggedIn = false
+		icbLoggedIn = false
 		// Send signal for closed ICB connection
-		close(icb_ch)
+		close(icb_close)
 	// Command Output
 	case icbPacketType["M_CMDOUT"]:
 		logger.LogDebug("ICB - Received Command Output packet")
@@ -672,7 +666,6 @@ func icbSendPing(conn net.Conn) error {
 // - irc_conn (net.Conn): handle for connection to IRC client
 func IcbConnect(server string, port int) net.Conn {
 	addr := fmt.Sprintf("%s:%d", server, port)
-	IcbLoggedIn = false
 
 	logger.LogDebugf("ICB - Trying to connect to ICB server [%s]", addr)
 

@@ -252,7 +252,7 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			if password_invalid {
 				break
 			}
-			// TODO Handle case if already connected to ICB server
+			// TODO Handle case if already connected to ICB server => change NICK
 			// Connection to ICB server
 			icb_conn = icb.IcbConnect(server_addr, server_port)
 			defer icb_conn.Close()
@@ -276,7 +276,7 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			// With ICB protocol, only one current group
 			// Format for JOIN paramaters: "<channel>{,<channel>} [<key>{,<key>}]"
 			if len(strings.Split(params[0], ",")) > 1 {
-				logger.LogError("IRC - Only one unique ICB group for JOIN command")
+				logger.LogErrorf("IRC - Only one unique ICB group for JOIN command - Received '%s'", params[0])
 				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["ERR_NEEDMOREPARAMS"], "JOIN :Only one unique ICB group for join")
 				break
 			}
@@ -284,31 +284,26 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			var group string
 			if !strings.HasPrefix(params[0], "#") {
 				logger.LogErrorf("IRC - invalid group '%s' (don't start with #)", params[0])
+				break
 			} else {
 				group = params[0][1:]
 			}
-			logger.LogDebugf("IRC - JOIN command => send ICB command to join group '%s'", group)
-			icb.IcbSendGroup(icb_conn, group)
+			if icb.IcbGroupCurrent == group {
+				logger.LogInfof("IRC - JOIN command => already in ICB group '%s'", group)
+				irc.IrcSendNotice(irc_conn, "*** :You are already in ICB group %s", group)
+				break
+			} else {
+				logger.LogDebugf("IRC - JOIN command => send ICB command to join group '%s'", group)
+				icb.IcbSendGroup(icb_conn, group)
+				icb.IcbGroupCurrent = group
+			}
 
 		case irc.IrcCommandList:
-			// Channel to receive ICB groups list
-			icb.IcbGroupsChannel = make(chan []*icb.IcbGroup)
+			logger.LogInfo("IRC - LIST command => send ICB command to list groups with users")
+			icb.IcbQueryGroups(icb_conn)
 
-			// Send ICB command to list groups
-			logger.LogInfo("IRC - LIST command => send ICB command to list groups")
-			icb.IcbGroupsReceived = make(chan struct{})
-			icb.IcbSendList(icb_conn)
-			// Wait reception of groups via ICB
-			<-icb.IcbGroupsReceived
-
-			// Send ICB command to list users
-			logger.LogInfo("IRC - LIST command => send ICB command to list users")
-			icb.IcbSendNames(icb_conn)
-
-			// Receive ICB groups list with users via channel
 			// TODO Filter groups with IRC command "LIST" paramaters
-			icb_groups := <-icb.IcbGroupsChannel
-			for _, group := range icb_groups {
+			for _, group := range icb.IcbGroups {
 				logger.LogDebugf("ICB - [Group] Name = %s - Topic = '%s' - %d users %q", group.Name, group.Topic, len(group.Users), group.Users)
 				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_LIST"], "#%s %d :%s", group.Name, len(group.Users), group.Topic)
 			}
@@ -352,7 +347,7 @@ func runIRCDaemon(pathname string, listen_addr string, listen_port int, server_a
 		log.SetFlags(log.LstdFlags)
 		logger.WithoutColors()
 
-		// logger.SetLogLevel(logger.LevelInfo)
+		logger.SetLogLevel(logger.LevelTrace)
 	}
 
 	logger.LogInfof("Process running - PID = %d", os.Getpid())
