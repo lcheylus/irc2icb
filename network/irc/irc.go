@@ -191,10 +191,20 @@ func IrcCommand(conn net.Conn, data string) (int, []string) {
 
 // Send JOIN message to IRC connection
 // Inputs:
-// - nick (string): client/nick who is joining
+// - nick (string): nick who is joining
+// - user (string): username for user
+// - host (string): hostname for user
+// - private (bool): option to mask host in JOIN message
 // - channel (string): channel which that client has joined
-func IrcSendJoin(conn net.Conn, nick string, channel string) error {
-	msg := fmt.Sprintf(":%s JOIN :%s\r\n")
+func IrcSendJoin(conn net.Conn, nick string, user string, host string, private bool, channel string) error {
+	var sent_host string
+	if private {
+		sent_host = "private"
+	} else {
+		sent_host = host
+	}
+
+	msg := fmt.Sprintf(":%s!%s@%s JOIN :%s\r\n", nick, user, sent_host, channel)
 	_, err := conn.Write([]byte(msg))
 	return err
 }
@@ -213,6 +223,10 @@ func IrcSendCode(conn net.Conn, nick string, code string, format string, args ..
 		logger.LogWarn("IRC - nick not defined in irc.IrcSendCode function")
 	}
 
+	// TODO Add target as ICB HostId
+	// RFC 2812 section 2.4
+	// The numeric reply MUST be sent as one message consisting of the sender prefix,
+	// the three-digit numeric, and the target of the reply.
 	prefix := fmt.Sprintf("%s %s ", code, nick)
 	msg := fmt.Sprintf(format, args...)
 
