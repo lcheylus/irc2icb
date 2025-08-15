@@ -413,7 +413,7 @@ func icbHandleType(icb_conn net.Conn, msg icbPacket, irc_conn net.Conn, icb_clos
 	case icbPacketType["M_ERROR"]:
 		fields := getIcbPacketFields(msg.Data)
 		logger.LogErrorf("ICB - Received Error Message packet - err = '%s'", fields[0])
-		irc.IrcSendMsg(irc_conn, "ERROR :"+fmt.Sprintf("ICB Error Message: %s", getIcbString(fields[0])))
+		irc.IrcSendRaw(irc_conn, "ERROR :"+fmt.Sprintf("ICB Error Message: %s", getIcbString(fields[0])))
 
 		// TODO Handle case if ICB connection not closed/reset
 		// => ICB Error "Nickname already in use." with reconnection

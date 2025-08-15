@@ -242,8 +242,8 @@ func IrcSendCode(conn net.Conn, nick string, code string, format string, args ..
 	return err
 }
 
-// Send message to IRC connection
-func IrcSendMsg(conn net.Conn, format string, args ...interface{}) error {
+// Send raw message to IRC connection
+func IrcSendRaw(conn net.Conn, format string, args ...interface{}) error {
 	msg := fmt.Sprintf(format, args...)
 	_, err := conn.Write([]byte(msg + "\r\n"))
 	return err

@@ -245,7 +245,7 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 		case irc.IrcCommandNick:
 			// Check if password is defined and valid (parsed from IRC PASS command)
 			if len(irc.IrcPassword) == 0 {
-				irc.IrcSendMsg(irc_conn, "ERROR :ICB password must be defined for nick "+irc.IrcNick)
+				irc.IrcSendRaw(irc_conn, "ERROR :ICB password must be defined for nick "+irc.IrcNick)
 				logger.LogError("ICB password must be defined for nick " + irc.IrcNick)
 				break
 			}
@@ -284,7 +284,7 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			var group string
 			if !strings.HasPrefix(params[0], "#") {
 				logger.LogErrorf("IRC - invalid group '%s' (don't start with #)", params[0])
-				irc.IrcSendMsg(irc_conn, "ERROR :Invalid syntax for group '%s' in join (must start with #)", params[0])
+				irc.IrcSendRaw(irc_conn, "ERROR :Invalid syntax for group '%s' in join (must start with #)", params[0])
 				break
 			} else {
 				group = params[0][1:]
@@ -360,7 +360,7 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			close(icb_ch)
 		case irc.IrcCommandPing:
 			logger.LogDebugf("IRC - Send PONG message")
-			irc.IrcSendMsg(irc_conn, "PONG %s", params[0])
+			irc.IrcSendRaw(irc_conn, "PONG %s", params[0])
 			icb.IcbSendNoop(icb_conn)
 
 		case irc.IrcCommandUnknown:
