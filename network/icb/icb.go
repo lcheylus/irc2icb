@@ -319,8 +319,6 @@ func parseIcbStatus(category string, content string, icb_conn net.Conn, irc_conn
 	}
 
 	// TODO Parse Status Message: Status, Arrive, Depart, Sign-Off, Name, Topic, Pass, Boot
-	// "Timeout" "Foxy is now mod."
-	// "Idle-Mod" "A piano suddenly falls on sl'lee, dislodging moderatorship of couch."
 
 	switch category {
 	case "Status":
@@ -333,6 +331,12 @@ func parseIcbStatus(category string, content string, icb_conn net.Conn, irc_conn
 		}
 		return nil
 	case "No-Pass":
+		irc.IrcSendNotice(irc_conn, "*** :ICB Status Message: %s", content)
+		return nil
+	case "Timeout":
+		irc.IrcSendNotice(irc_conn, "*** :ICB Status Message: %s", content)
+		return nil
+	case "Idle-Mod":
 		irc.IrcSendNotice(irc_conn, "*** :ICB Status Message: %s", content)
 		return nil
 	default:
