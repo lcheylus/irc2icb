@@ -16,10 +16,10 @@ import (
 
 	logger "irc2icb/utils"
 	optparse "irc2icb/utils"
+	"irc2icb/version"
 
 	icb "irc2icb/network/icb"
 	irc "irc2icb/network/irc"
-	"irc2icb/version"
 
 	"github.com/BurntSushi/toml"
 )
@@ -297,6 +297,47 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 				icb.IcbSendGroup(icb_conn, group)
 				icb.IcbGroupCurrent = group
 			}
+
+			// Get users for current group
+			icb_group := icb.IcbGetGroup(group)
+			if icb_group == nil {
+				logger.LogWarnf("IRC - JOIN command => unable to find current group '%s' in ICB groups list", group)
+				logger.LogInfo("IRC - JOIN command => send ICB command to list groups with users")
+				icb.IcbQueryGroups(icb_conn)
+				icb_group = icb.IcbGetGroup(group)
+			}
+			logger.LogWarnf("IRC - JOIN command => current ICB group '%s' - users = %q", group, icb_group.Users)
+
+			logger.LogDebugf("IRC - Send replies to JOIN command for group '%s'", group)
+
+			icb_user := icb.IcbGetUser(irc.IrcNick)
+			channel := fmt.Sprintf("#%s", group)
+
+			// Send IRC JOIN message with private hostname
+			irc.IrcSendJoin(irc_conn, irc.IrcNick, icb_user.Username, icb_user.Hostname, true, channel)
+
+			// TODO Send RPL_NOTOPIC (331) if Topic is "None"
+			irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_TOPIC"], fmt.Sprintf("%s :%s", channel, icb_group.Topic))
+
+			// A list of users currently joined to the channel (with one or more RPL_NAMREPLY (353) numerics
+			// followed by a single RPL_ENDOFNAMES (366) numeric).
+			// These RPL_NAMREPLY messages sent by the server MUST include the requesting client that has just joined the channel.
+			// Format for RPL_NAMREPLY message: "<client> <symbol> <channel> :[prefix]<nick>{ [prefix]<nick>}"
+			users := icb_group.Users
+			if !icb_group.IcbUserInGroup(irc.IrcNick) {
+				users = append(users, irc.IrcNick)
+			}
+
+			// Get user's operator status from IcbUser object
+			var users_with_prefix []string
+			var icb_tmp_user *icb.IcbUser
+			for _, user := range users {
+				icb_tmp_user = icb.IcbGetUser(user)
+				users_with_prefix = append(users_with_prefix, irc.IrcGetNickWithPrefix(user, icb_tmp_user.Moderator))
+			}
+
+			irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_NAMREPLY"], fmt.Sprintf("= %s :%s", channel, strings.Join(users_with_prefix, " ")))
+			irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_ENDOFNAMES"], fmt.Sprintf("%s :End of /NAMES list", channel))
 
 		case irc.IrcCommandList:
 			logger.LogInfo("IRC - LIST command => send ICB command to list groups with users")
