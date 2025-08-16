@@ -319,7 +319,7 @@ func parseIcbStatus(category string, content string, icb_conn net.Conn, irc_conn
 		return fmt.Errorf("invalid Status message - no category defined")
 	}
 
-	// TODO Parse Status Message: Status, Arrive, Depart, Sign-Off, Name, Topic, Pass, Boot
+	// TODO Parse Status Message: Status, Name, Topic, Pass, Boot
 
 	switch category {
 	case "Status":
@@ -350,6 +350,23 @@ func parseIcbStatus(category string, content string, icb_conn net.Conn, irc_conn
 		} else {
 			logger.LogTracef("ICB - User left group '%s' - nick = '%s' user = '%s' host = '%s'", IcbGroupCurrent, matches[1], matches[2], matches[3])
 			irc.IrcSendPart(irc_conn, matches[1], matches[2], matches[3], "#"+IcbGroupCurrent)
+		}
+	case "Sign-off":
+		// content = 'FoxySend (foxsend@82-64-218-201.subs.proxad.net) has signed off.'
+		re, _ := regexp.Compile(`^(\w+) \((\w+)@(.+)\) (.+)$`)
+		matches := re.FindStringSubmatch(content)
+		if matches == nil {
+			logger.LogErrorf("ICB - Status %s: unable to find infos 'nick (user@host)' in content '%s'", category, content)
+		} else {
+			logger.LogTracef("ICB - User disconnected from server - nick = '%s' user = '%s' host = '%s'", matches[1], matches[2], matches[3])
+
+			var reason string
+			if strings.HasSuffix(matches[4], ".") {
+				reason = matches[4][:len(matches[4])-1]
+			} else {
+				reason = matches[4]
+			}
+			irc.IrcSendRaw(irc_conn, ":%s!%s@%s QUIT :%s", matches[1], matches[2], matches[3], reason)
 		}
 	case "No-Pass":
 		irc.IrcSendNotice(irc_conn, "*** :ICB Status Message: %s", content)
