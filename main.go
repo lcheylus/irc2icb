@@ -352,15 +352,14 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			logger.LogDebugf("IRC - Send replies to JOIN command for group '%s'", group)
 
 			icb_user := icb.IcbGetUser(irc.IrcNick)
-			channel := fmt.Sprintf("#%s", group)
 
 			// Send IRC JOIN message with private hostname
-			irc.IrcSendJoin(irc_conn, irc.IrcNick, icb_user.Username, icb_user.Hostname, channel)
+			irc.IrcSendJoin(irc_conn, irc.IrcNick, icb_user.Username, icb_user.Hostname, "#"+group)
 
 			if icb_group.Topic != "(None)" {
-				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_TOPIC"], fmt.Sprintf("%s :%s", channel, icb_group.Topic))
+				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_TOPIC"], fmt.Sprintf("#%s :%s", group, icb_group.Topic))
 			} else {
-				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_NOTOPIC"], fmt.Sprintf("%s :No topic is set", channel))
+				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_NOTOPIC"], fmt.Sprintf("#%s :No topic is set", group))
 			}
 
 			// A list of users currently joined to the channel (with one or more RPL_NAMREPLY (353) numerics
@@ -372,16 +371,17 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 				users = append(users, irc.IrcNick)
 			}
 
-			// Get user's operator status from IcbUser object
-			var users_with_prefix []string
 			var icb_tmp_user *icb.IcbUser
+
+			// Send IRC RPL_NAMREPLY and RPL_WHO_REPLY codes for each user in group
 			for _, user := range users {
 				icb_tmp_user = icb.IcbGetUser(user)
-				users_with_prefix = append(users_with_prefix, irc.IrcGetNickWithPrefix(user, icb_tmp_user.Moderator))
+				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_NAMREPLY"], "= #%s :%s", group, irc.IrcGetNickWithPrefix(user, icb_tmp_user.Moderator))
+				// RPL_WHOREPLY message format = "<client> <channel> <username> <host> <server> <nick> <flags> :<hopcount> <realname>"
+				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_WHOREPLY"], "#%s %s %s %s %s H :5 %s", group, icb_tmp_user.Nick, icb_tmp_user.Hostname, "Server_ICB", icb_tmp_user.Nick, icb_tmp_user.Username)
 			}
-
-			irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_NAMREPLY"], fmt.Sprintf("= %s :%s", channel, strings.Join(users_with_prefix, " ")))
-			irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_ENDOFNAMES"], fmt.Sprintf("%s :End of /NAMES list", channel))
+			irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_ENDOFNAMES"], fmt.Sprintf("#%s :End of /NAMES list", group))
+			irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_ENDOFWHO"], fmt.Sprintf("#%s :End of /WHO list", group))
 
 		case irc.IrcCommandList:
 			logger.LogInfo("IRC - LIST command => send ICB command to list groups with users")
