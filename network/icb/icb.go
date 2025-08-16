@@ -523,27 +523,26 @@ func icbHandleType(icb_conn net.Conn, msg icbPacket, irc_conn net.Conn, icb_clos
 		fields := getIcbPacketFields(msg.Data)
 		nick := getIcbString(fields[0])
 		logger.LogTracef("ICB - Received Beep packet - nick = %s", nick)
+		irc.IrcSendNotice(irc_conn, "*** :ICB Beep from %s", nick)
 	// Ping from server
 	case icbPacketType["M_PING"]:
 		logger.LogDebug("ICB - Received PING packet")
 		fields := getIcbPacketFields(msg.Data)
 		if len(fields) > 1 {
-			logger.LogWarnf("ICB - Invalid PING fields: %d received (max = 1) - fields = '%s'", len(fields), fields)
+			logger.LogWarnf("ICB - Invalid PING fields: %d received (max = 1) - fields = %q", len(fields), fields)
 		}
-		if len(fields) == 1 {
-			// case icbMessageId := fields[0]
-			// TODO Reply with PONG packet + Message Id
+		if len(fields) <= 1 {
+			irc.IrcSendNotice(irc_conn, "*** :ICB Ping - fields = %q", fields)
 		}
 	// Pong from server
 	case icbPacketType["M_PONG"]:
 		logger.LogDebug("ICB - Received PONG packet")
 		fields := getIcbPacketFields(msg.Data)
 		if len(fields) > 1 {
-			logger.LogWarnf("ICB - Invalid PONG fields: %d received (max = 1) - fields = '%s'", len(fields), fields)
+			logger.LogWarnf("ICB - Invalid PONG fields: %d received (max = 1) - fields = %q", len(fields), fields)
 		}
-		if len(fields) == 1 {
-			// case icbMessageId := fields[0]
-			// TODO Reply + Message Id ?
+		if len(fields) <= 1 {
+			irc.IrcSendNotice(irc_conn, "*** :ICB Pong - fields = %q", fields)
 		}
 	default:
 		logger.LogWarnf("ICB - Unknown command type '%s'", string(msg.Type))
