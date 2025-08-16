@@ -40,10 +40,11 @@ type IcbGroup struct {
 	Users []string // List of users (by nick) member of this group
 }
 
-// Get ICB groups with users via ICB Command => import in IcbGroups (list of *IcbGroup pointers)
+// Get ICB groups and users via ICB Command
 // Inputs:
 // - icb_conn (net.Conn): connection to ICB server
-func IcbQueryGroups(icb_conn net.Conn) {
+// Append group in IcbGroups list and user in IcbUsers list
+func IcbQueryWho(icb_conn net.Conn) {
 	// Send ICB command to list groups
 	icbGroupsReceived = make(chan struct{})
 	IcbSendList(icb_conn)

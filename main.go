@@ -322,7 +322,7 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 				if icb_group == nil {
 					logger.LogWarnf("IRC - JOIN command => unable to find current group '%s' in ICB groups list", group)
 					logger.LogInfo("IRC - JOIN command => send ICB command to list groups with users")
-					icb.IcbQueryGroups(icb_conn)
+					icb.IcbQueryWho(icb_conn)
 					icb_group = icb.IcbGetGroup(group)
 					// Error for unknown group
 					if icb_group == nil {
@@ -385,7 +385,7 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 
 		case irc.IrcCommandList:
 			logger.LogInfo("IRC - LIST command => send ICB command to list groups with users")
-			icb.IcbQueryGroups(icb_conn)
+			icb.IcbQueryWho(icb_conn)
 
 			// TODO Filter groups with IRC command "LIST" paramaters
 			for _, group := range icb.IcbGroups {
