@@ -336,8 +336,7 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 				if icb.IcbGroupCurrent != "" {
 					logger.LogInfof("IRC - JOIN command => leave previous channel '%s'", "#"+icb.IcbGroupCurrent)
 					icb_user := icb.IcbGetUser(irc.IrcNick)
-					// TODO Add an option for private on/off
-					irc.IrcSendPart(irc_conn, irc.IrcNick, icb_user.Username, "private", "#"+icb.IcbGroupCurrent)
+					irc.IrcSendPart(irc_conn, irc.IrcNick, icb_user.Username, icb_user.Hostname, "#"+icb.IcbGroupCurrent)
 				}
 
 				logger.LogDebugf("IRC - JOIN command => send ICB command to join group '%s'", group)
@@ -356,7 +355,7 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			channel := fmt.Sprintf("#%s", group)
 
 			// Send IRC JOIN message with private hostname
-			irc.IrcSendJoin(irc_conn, irc.IrcNick, icb_user.Username, icb_user.Hostname, true, channel)
+			irc.IrcSendJoin(irc_conn, irc.IrcNick, icb_user.Username, icb_user.Hostname, channel)
 
 			if icb_group.Topic != "(None)" {
 				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_TOPIC"], fmt.Sprintf("%s :%s", channel, icb_group.Topic))

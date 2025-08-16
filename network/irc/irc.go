@@ -218,17 +218,9 @@ func IrcSendMsg(conn net.Conn, src string, dst string, msg string) error {
 // - nick (string): nick who is joining
 // - user (string): username for user
 // - host (string): hostname for user
-// - private (bool): option to mask host in JOIN message
 // - channel (string): channel which that client has joined
-func IrcSendJoin(conn net.Conn, nick string, user string, host string, private bool, channel string) error {
-	var sent_host string
-	if private {
-		sent_host = "private"
-	} else {
-		sent_host = host
-	}
-
-	msg := fmt.Sprintf(":%s!%s@%s JOIN :%s\r\n", nick, user, sent_host, channel)
+func IrcSendJoin(conn net.Conn, nick string, user string, host string, channel string) error {
+	msg := fmt.Sprintf(":%s!%s@%s JOIN :%s\r\n", nick, user, host, channel)
 	_, err := conn.Write([]byte(msg))
 	return err
 }
