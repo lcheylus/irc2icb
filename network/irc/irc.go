@@ -274,5 +274,7 @@ func IrcSendCode(conn net.Conn, nick string, code string, format string, args ..
 func IrcSendRaw(conn net.Conn, format string, args ...interface{}) error {
 	msg := fmt.Sprintf(format, args...)
 	_, err := conn.Write([]byte(msg + "\r\n"))
+	logger.LogTracef("IRC - Send raw messages '%s'", msg)
+
 	return err
 }
