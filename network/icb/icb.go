@@ -4,6 +4,7 @@ package icb
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"net"
@@ -80,7 +81,7 @@ func getIcbPacketType(val string) string {
 		}
 	}
 
-	logger.LogWarnf("ICB - getIcbPacketType: unable to get type for value '%s'", val)
+	logger.LogErrorf("ICB - getIcbPacketType: unable to get type for value '%s'", val)
 	return ""
 }
 
@@ -114,7 +115,7 @@ func GetIcbPackets(icb_conn net.Conn, irc_conn net.Conn, icb_close chan struct{}
 				}
 			}
 
-			logger.LogTracef("ICB - Received ICB Message: Type=%s, Data='%s' (len = %d)", getIcbPacketType(string(msg.Type)), string(msg.Data), len(msg.Data))
+			logger.LogTracef("ICB - Received ICB packet: Type=%s, Data='%s' (len = %d)", getIcbPacketType(string(msg.Type)), string(msg.Data), len(msg.Data))
 			if len(msg.Data) > 1 {
 				fields := getIcbPacketFields(msg.Data)
 				logger.LogTracef("ICB - ICB message fields = %q", fields)
@@ -179,10 +180,17 @@ func getIcbString(input string) string {
 }
 
 // Get fields from ICB packet datas
-// The fields are data separated by ASCII ^A (\001).
-// If a field is optional, it (and any fields after it) can merely be left out of the packet.
+// The fields are data separated by ASCII ^A (\001)
+// Inputs:
+// - raw ([]byte): slice of bytes read from ICB server
+// Return []string with fields splitted by separator and converted to UTF-8.
 func getIcbPacketFields(raw []byte) []string {
-	fields := strings.Split(string(raw), "\001")
+	bytes_fields := bytes.Split(raw, []byte("\001"))
+
+	var fields []string
+	for _, field := range bytes_fields {
+		fields = append(fields, string(field))
+	}
 	return fields
 }
 
@@ -572,7 +580,8 @@ func IcbSendOpenmsg(conn net.Conn, msg string) error {
 	// TODO Check max size for msg and return error if too long
 	// MAX_SIZE_MSG = 246
 
-	packet := []byte(fmt.Sprintf("%s%s", icbPacketType["M_OPEN"], msg))
+	packet := []byte(icbPacketType["M_OPEN"])
+	packet = append(packet, []byte(msg)...)
 	packet = preprendPacketLength(packet)
 
 	logger.LogTracef("ICB - Open Message packet msg = '%s' - packet = %v - length = %d", msg, packet, len(packet)-1)
@@ -599,7 +608,8 @@ func IcbSendPrivatemsg(conn net.Conn, nick string, msg string) error {
 	// TODO Check max size for msg and return error if too long
 	// MAX_SIZE_MSG = 246
 
-	packet := []byte(fmt.Sprintf("%sm\001%s %s", icbPacketType["M_COMMAND"], nick, msg))
+	packet := []byte(fmt.Sprintf("%sm\001%s ", icbPacketType["M_COMMAND"], nick))
+	packet = append(packet, []byte(msg)...)
 	packet = preprendPacketLength(packet)
 
 	logger.LogTracef("ICB - Personal Message packet msg = '%s' - packet = %v - length = %d", msg, packet, len(packet)-1)
