@@ -650,7 +650,6 @@ func IcbSendPrivatemsg(conn net.Conn, nick string, msg string) error {
 // aLoginid^ANickname^ADefaultGroup^ACommand^APassword^AGroupStatus^AProtocolLevel
 func icbSendLogin(conn net.Conn, nick string, pass string, username string) error {
 	group := "slac"
-	IcbGroupCurrent = group
 
 	login_cmd := "login"
 
@@ -702,8 +701,8 @@ func IcbSendNames(conn net.Conn) error {
 }
 
 // Send ICB command to join group
-func IcbSendGroup(conn net.Conn, group string) error {
-	logger.LogInfo("ICB - Send command to join group")
+func IcbJoinGroup(conn net.Conn, group string) error {
+	logger.LogInfof("ICB - Send command to join group '%s'", group)
 
 	packet := []byte(fmt.Sprintf("%sg\001%s", icbPacketType["M_COMMAND"], group))
 	packet = preprendPacketLength(packet)
