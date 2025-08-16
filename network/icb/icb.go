@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -332,17 +333,14 @@ func parseIcbStatus(category string, content string, icb_conn net.Conn, irc_conn
 		return nil
 	case "Depart":
 		// User left group - content = 'FoxySend (foxsend@82-64-218-201.subs.proxad.net) just left'
-		// TODO Use regexp to find nick, user and host
-		fields := strings.Split(content, " ")
-		nick := fields[0]
-
-		field_tmp := fields[1][1 : len(fields[1])-1]
-		fields_tmp := strings.Split(field_tmp, "@")
-		user := fields_tmp[0]
-		host := fields_tmp[1]
-
-		logger.LogWarnf("ICB - User left group nick = '%s' user = '%s' host = '%s'", nick, user, host)
-		irc.IrcSendPart(irc_conn, nick, user, host, "#"+IcbGroupCurrent)
+		re, _ := regexp.Compile(`^(\w+) \((\w+)@(.+)\) just left$`)
+		matches := re.FindStringSubmatch(content)
+		if matches == nil {
+			logger.LogErrorf("ICB - Unable to find infos 'nick (user@host)' in content '%s'", content)
+		} else {
+			logger.LogTracef("ICB - User left group '%s' - nick = '%s' user = '%s' host = '%s'", IcbGroupCurrent, matches[1], matches[2], matches[3])
+			irc.IrcSendPart(irc_conn, matches[1], matches[2], matches[3], "#"+IcbGroupCurrent)
+		}
 	case "No-Pass":
 		irc.IrcSendNotice(irc_conn, "*** :ICB Status Message: %s", content)
 		return nil
