@@ -177,16 +177,22 @@ func IrcCommand(conn net.Conn, data string) (int, []string) {
 		logger.LogTracef("IRC - Received JOIN command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
 		// TODO Handle case with multiple groups in params
 		return IrcCommandJoin, msg.Params
-	case "LIST":
-		logger.LogTracef("IRC - Received LIST command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
-		return IrcCommandList, nil
+	case "PART":
+		logger.LogTracef("IRC - Received PART command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
+		if !strings.HasPrefix(msg.Params[0], "#") {
+			logger.LogErrorf("IRC - invalid channel '%s' in PART command, don't start with #", msg.Params[0])
+		}
+		// Don't need to get channel the user is leaving, == current ICB group
+		return IrcCommandNop, nil
 	case "QUIT":
 		logger.LogTracef("IRC - Received QUIT command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
 		return IrcCommandQuit, nil
+	case "LIST":
+		logger.LogTracef("IRC - Received LIST command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
+		return IrcCommandList, nil
 	case "PING":
 		logger.LogTracef("IRC - Received PING command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
 		return IrcCommandPing, []string{msg.Params[0]}
-	// Send fake reply for LIST command
 	default:
 		logger.LogWarnf("IRC - Received unknown command '%s'", msg.Command)
 	}
@@ -223,6 +229,19 @@ func IrcSendJoin(conn net.Conn, nick string, user string, host string, private b
 	}
 
 	msg := fmt.Sprintf(":%s!%s@%s JOIN :%s\r\n", nick, user, sent_host, channel)
+	_, err := conn.Write([]byte(msg))
+	return err
+}
+
+// Send PART message to IRC connection
+// Inputs:
+// - nick (string): nick who is leaving
+// - user (string): username for user
+// - host (string): hostname for user
+// - channel (string): channel which that client has left, prefixed with #
+func IrcSendPart(conn net.Conn, nick string, user string, host string, channel string) error {
+	logger.LogDebugf("IRC - Send PART message '%s!%s@%s' leave channel '%s'", nick, user, host, channel)
+	msg := fmt.Sprintf(":%s!%s@%s PART %s\r\n", nick, user, host, channel)
 	_, err := conn.Write([]byte(msg))
 	return err
 }

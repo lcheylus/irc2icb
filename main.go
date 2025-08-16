@@ -303,6 +303,8 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			}
 
 			var group string
+			var icb_group *icb.IcbGroup
+
 			if !strings.HasPrefix(params[0], "#") {
 				logger.LogErrorf("IRC - invalid group '%s' (don't start with #)", params[0])
 				irc.IrcSendRaw(irc_conn, "ERROR :Invalid syntax for group '%s' in join (must start with #)", params[0])
@@ -315,19 +317,37 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 				irc.IrcSendNotice(irc_conn, "*** :You are already in ICB group %s", group)
 				break
 			} else {
+				// Get users for group
+				icb_group = icb.IcbGetGroup(group)
+				if icb_group == nil {
+					logger.LogWarnf("IRC - JOIN command => unable to find current group '%s' in ICB groups list", group)
+					logger.LogInfo("IRC - JOIN command => send ICB command to list groups with users")
+					icb.IcbQueryGroups(icb_conn)
+					icb_group = icb.IcbGetGroup(group)
+					// Error for unknown group
+					if icb_group == nil {
+						irc.IrcSendNotice(irc_conn, "*** :Unknown ICB group %s", group)
+						break
+					}
+				}
+				logger.LogWarnf("IRC - JOIN command => current ICB group '%s' - users = %q", group, icb_group.Users)
+
+				// Leave previous group
+				if icb.IcbGroupCurrent != "" {
+					logger.LogInfof("IRC - JOIN command => leave previous channel '%s'", "#"+icb.IcbGroupCurrent)
+					icb_user := icb.IcbGetUser(irc.IrcNick)
+					// TODO Add an option for private on/off
+					irc.IrcSendPart(irc_conn, irc.IrcNick, icb_user.Username, "private", "#"+icb.IcbGroupCurrent)
+				}
+
 				logger.LogDebugf("IRC - JOIN command => send ICB command to join group '%s'", group)
+
+				// TODO Handle case if group restricted - Error Message '<group> is restricted.'
 				icb.IcbSendGroup(icb_conn, group)
 				icb.IcbGroupCurrent = group
 			}
 
-			// Get users for current group
-			icb_group := icb.IcbGetGroup(group)
-			if icb_group == nil {
-				logger.LogWarnf("IRC - JOIN command => unable to find current group '%s' in ICB groups list", group)
-				logger.LogInfo("IRC - JOIN command => send ICB command to list groups with users")
-				icb.IcbQueryGroups(icb_conn)
-				icb_group = icb.IcbGetGroup(group)
-			}
+			icb_group = icb.IcbGetGroup(group)
 			logger.LogWarnf("IRC - JOIN command => current ICB group '%s' - users = %q", group, icb_group.Users)
 
 			logger.LogDebugf("IRC - Send replies to JOIN command for group '%s'", group)
@@ -384,14 +404,9 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			irc.IrcSendRaw(irc_conn, "PONG %s", params[0])
 			icb.IcbSendNoop(icb_conn)
 
+		case irc.IrcCommandNop:
 		case irc.IrcCommandUnknown:
 		default:
-			/* if err != nil {
-				logger.LogErrorf("Error writing to client: %s", err.Error())
-				return
-			} else {
-				logger.LogDebug("Send notification to IRC client")
-			} */
 		}
 	}
 
