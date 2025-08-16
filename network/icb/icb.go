@@ -331,12 +331,22 @@ func parseIcbStatus(category string, content string, icb_conn net.Conn, irc_conn
 			irc.IrcSendNotice(irc_conn, "*** :ICB Status Message: %s", content)
 		}
 		return nil
+	case "Arrive", "Sign-on":
+		// content = 'FoxySend (foxsend@82-64-218-201.subs.proxad.net) entered group'
+		re, _ := regexp.Compile(`^(\w+) \((\w+)@(.+)\) entered group$`)
+		matches := re.FindStringSubmatch(content)
+		if matches == nil {
+			logger.LogErrorf("ICB - Status %s: unable to find infos 'nick (user@host)' in content '%s'", category, content)
+		} else {
+			logger.LogTracef("ICB - User entered group '%s' - nick = '%s' user = '%s' host = '%s'", IcbGroupCurrent, matches[1], matches[2], matches[3])
+			irc.IrcSendJoin(irc_conn, matches[1], matches[2], matches[3], "#"+IcbGroupCurrent)
+		}
 	case "Depart":
-		// User left group - content = 'FoxySend (foxsend@82-64-218-201.subs.proxad.net) just left'
+		// content = 'FoxySend (foxsend@82-64-218-201.subs.proxad.net) just left'
 		re, _ := regexp.Compile(`^(\w+) \((\w+)@(.+)\) just left$`)
 		matches := re.FindStringSubmatch(content)
 		if matches == nil {
-			logger.LogErrorf("ICB - Unable to find infos 'nick (user@host)' in content '%s'", content)
+			logger.LogErrorf("ICB - Status %s: unable to find infos 'nick (user@host)' in content '%s'", category, content)
 		} else {
 			logger.LogTracef("ICB - User left group '%s' - nick = '%s' user = '%s' host = '%s'", IcbGroupCurrent, matches[1], matches[2], matches[3])
 			irc.IrcSendPart(irc_conn, matches[1], matches[2], matches[3], "#"+IcbGroupCurrent)
