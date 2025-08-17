@@ -387,7 +387,7 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			logger.LogDebugf("IRC - Send reply to LIST command - nick = %s", irc.IrcNick)
 
 		case irc.IrcCommandMode:
-			logger.LogInfof("IRC - MODE commands => parameters = %q", params)
+			logger.LogInfof("IRC - MODE command => parameters = %q", params)
 			if !utils.IsValidChannel(params[0]) || utils.FromChannel(params[0]) != icb.IcbGroupCurrent {
 				logger.LogDebugf("IRC - MODE command not for current ICB group => nothing to do - params = %q", params)
 				// TODO Return message for error
@@ -417,6 +417,48 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 					// icb_send_pass(server_fd, argv[3])
 				}
 			}
+
+		case irc.IrcCommandWho:
+			// In the absence of the <mask> parameter, all visible (users who aren't invisible (user mode +i)
+			// and who don't have a common channel with the requesting client) are listed.
+			// The same result can be achieved by using a <mask> of "0" or any wildcard which will end up
+			// matching every visible user.
+			logger.LogInfof("IRC - WHO command => params = %q", params)
+
+			if len(params) == 0 || params[0] == "0" {
+				logger.LogInfo("ICB - WHO command => (TODO) case not handled to list all visible users")
+				break
+			}
+
+			// mask = channel
+			if utils.IsValidChannel(params[0]) {
+				logger.LogDebug("ICB - WHO command => query groups and users")
+
+				icb.IcbResetGroups()
+				icb.IcbResetUsers()
+				icb.IcbQueryWho(icb_conn)
+
+				// Check if group exists in ICB groups
+				group := utils.FromChannel(params[0])
+				icb_group := icb.IcbGetGroup(group)
+				if icb_group == nil {
+					logger.LogErrorf("ICB - WHO command => unknown group '%s'", group)
+					irc.IrcSendRaw(irc_conn, "ERROR :Unknown ICB group '%s' for WHO command", group)
+					break
+				}
+
+				var icb_tmp_user *icb.IcbUser
+
+				for _, user := range icb_group.Users {
+					icb_tmp_user = icb.IcbGetUser(user)
+					// RPL_WHOREPLY message format = "<client> <channel> <username> <host> <server> <nick> <flags> :<hopcount> <realname>"
+					irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_WHOREPLY"], "%s %s %s %s %s H :5 %s", utils.ToChannel(group), icb_tmp_user.Nick, icb_tmp_user.Hostname, "Server_ICB", icb_tmp_user.Nick, icb_tmp_user.Username)
+				}
+				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_ENDOFWHO"], fmt.Sprintf("%s :End of /WHO list", utils.ToChannel(group)))
+				break
+			}
+			// TODO Case if mask != channel
+			logger.LogInfof("ICB - WHO command => (TODO) case not handled for mask '%s'", params[0])
 
 		case irc.IrcCommandQuit:
 			logger.LogInfof("IRC - Client disconnected: %s\n", clientAddr)
