@@ -38,7 +38,6 @@ var IrcReplyCodes = map[string]string{
 	"ERR_CANNOTSENDTOCHAN": "404",
 
 	"ERR_NEEDMOREPARAMS": "461",
-	"ERR_PASSWDMISMATCH": "464",
 }
 
 // Get IRC reply code by key (RPL_xxx)

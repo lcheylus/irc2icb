@@ -252,18 +252,8 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			}
 
 		case irc.IrcCommandPass:
-			logger.LogDebugf("IRC - password = '%s'", irc.IrcPassword)
+			logger.LogDebugf("IRC - password (used from ICB group during login) = '%s'", irc.IrcPassword)
 
-			// ICB password max length = 12 and contains only alphanumeric chars
-			if len(irc.IrcPassword) < 1 || len(irc.IrcPassword) > 12 {
-				password_invalid = true
-				logger.LogErrorf("IRC - Password '%s' invalid: must be between 1 and 12 chars", irc.IrcPassword)
-				irc.IrcSendCode(irc_conn, "Error", irc.IrcReplyCodes["ERR_PASSWDMISMATCH"], ":ICB password must be between 1 and 12 characters.")
-			} else if !isAlphanumeric(irc.IrcPassword) {
-				password_invalid = true
-				logger.LogErrorf("IRC - Password '%s' invalid: must contain only alphanumeric chars", irc.IrcPassword)
-				irc.IrcSendCode(irc_conn, "Error", irc.IrcReplyCodes["ERR_PASSWDMISMATCH"], ":ICB password must contain only alphanumeric characters.")
-			}
 		case irc.IrcCommandNick:
 			// Check if password is defined and valid (parsed from IRC PASS command)
 			if len(irc.IrcPassword) == 0 {
