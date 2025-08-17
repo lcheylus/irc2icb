@@ -40,6 +40,24 @@ type IcbGroup struct {
 	Users []string // List of users (by nick) member of this group
 }
 
+// Reset global list of ICB groups
+// Remove all ICBGroup in list for GC
+func IcbResetGroups() {
+	for i := range IcbGroups {
+		IcbGroups[i] = nil
+	}
+	IcbGroups = IcbGroups[:0]
+}
+
+// Reset global list of ICB users
+// Remove all ICBUser in list for GC
+func IcbResetUsers() {
+	for i := range IcbUsers {
+		IcbUsers[i] = nil
+	}
+	IcbUsers = IcbUsers[:0]
+}
+
 // Get ICB groups and users via ICB Command
 // Inputs:
 // - icb_conn (net.Conn): connection to ICB server
