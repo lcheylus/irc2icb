@@ -14,6 +14,7 @@ import (
 
 	irc "irc2icb/network/irc"
 	logger "irc2icb/utils"
+	utils "irc2icb/utils"
 	"irc2icb/version"
 )
 
@@ -351,7 +352,7 @@ func parseIcbStatus(category string, content string, icb_conn net.Conn, irc_conn
 			logger.LogErrorf("ICB - Status %s: unable to find infos 'nick (user@host)' in content '%s'", category, content)
 		} else {
 			logger.LogTracef("ICB - User entered group '%s' - nick = '%s' user = '%s' host = '%s'", IcbGroupCurrent, matches[1], matches[2], matches[3])
-			irc.IrcSendJoin(irc_conn, matches[1], matches[2], matches[3], "#"+IcbGroupCurrent)
+			irc.IrcSendJoin(irc_conn, matches[1], matches[2], matches[3], utils.ToChannel(IcbGroupCurrent))
 		}
 	case "Depart":
 		// content = 'FoxySend (foxsend@host) just left'
@@ -361,7 +362,7 @@ func parseIcbStatus(category string, content string, icb_conn net.Conn, irc_conn
 			logger.LogErrorf("ICB - Status %s: unable to find infos 'nick (user@host)' in content '%s'", category, content)
 		} else {
 			logger.LogTracef("ICB - User left group '%s' - nick = '%s' user = '%s' host = '%s'", IcbGroupCurrent, matches[1], matches[2], matches[3])
-			irc.IrcSendPart(irc_conn, matches[1], matches[2], matches[3], "#"+IcbGroupCurrent)
+			irc.IrcSendPart(irc_conn, matches[1], matches[2], matches[3], utils.ToChannel(IcbGroupCurrent))
 		}
 	case "Sign-off":
 		// content = 'FoxySend (foxsend@host) has signed off.'
@@ -444,7 +445,7 @@ func icbHandleType(icb_conn net.Conn, msg icbPacket, irc_conn net.Conn, icb_clos
 		logger.LogTracef("ICB - Received Open Message packet - nickname = %s - content = '%s'", nickname, content)
 
 		logger.LogInfof("ICB - Send message from nickname = %s", nickname)
-		irc.IrcSendMsg(irc_conn, nickname, "#"+IcbGroupCurrent, content)
+		irc.IrcSendMsg(irc_conn, nickname, utils.ToChannel(IcbGroupCurrent), content)
 
 	// Personal Message
 	case icbPacketType["M_PERSONAL"]:
