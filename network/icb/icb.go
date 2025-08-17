@@ -340,7 +340,7 @@ func parseIcbStatus(category string, content string, icb_conn net.Conn, irc_conn
 		}
 		return nil
 	case "Arrive", "Sign-on":
-		// content = 'FoxySend (foxsend@82-64-218-201.subs.proxad.net) entered group'
+		// content = 'FoxySend (foxsend@host) entered group'
 		re, _ := regexp.Compile(`^(\w+) \((\w+)@(.+)\) entered group$`)
 		matches := re.FindStringSubmatch(content)
 		if matches == nil {
@@ -350,7 +350,7 @@ func parseIcbStatus(category string, content string, icb_conn net.Conn, irc_conn
 			irc.IrcSendJoin(irc_conn, matches[1], matches[2], matches[3], "#"+IcbGroupCurrent)
 		}
 	case "Depart":
-		// content = 'FoxySend (foxsend@82-64-218-201.subs.proxad.net) just left'
+		// content = 'FoxySend (foxsend@host) just left'
 		re, _ := regexp.Compile(`^(\w+) \((\w+)@(.+)\) just left$`)
 		matches := re.FindStringSubmatch(content)
 		if matches == nil {
@@ -360,7 +360,7 @@ func parseIcbStatus(category string, content string, icb_conn net.Conn, irc_conn
 			irc.IrcSendPart(irc_conn, matches[1], matches[2], matches[3], "#"+IcbGroupCurrent)
 		}
 	case "Sign-off":
-		// content = 'FoxySend (foxsend@82-64-218-201.subs.proxad.net) has signed off.'
+		// content = 'FoxySend (foxsend@host) has signed off.'
 		re, _ := regexp.Compile(`^(\w+) \((\w+)@(.+)\) (.+)$`)
 		matches := re.FindStringSubmatch(content)
 		if matches == nil {
