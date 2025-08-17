@@ -32,6 +32,7 @@ const (
 	IrcCommandJoin
 	IrcCommandList
 	IrcCommandMsg // Type for private messages and to a channel/group
+	IrcCommandMode
 	IrcCommandPing
 	IrcCommandQuit
 	IrcCommandUnknown
@@ -147,6 +148,9 @@ func IrcCommand(conn net.Conn, data string) (int, []string) {
 	case "PING":
 		logger.LogTracef("IRC - Received PING command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
 		return IrcCommandPing, []string{msg.Params[0]}
+	case "MODE":
+		logger.LogTracef("IRC - Received PING command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
+		return IrcCommandMode, msg.Params
 	default:
 		logger.LogWarnf("IRC - Received unknown command '%s'", msg.Command)
 	}
