@@ -149,7 +149,7 @@ func IrcCommand(conn net.Conn, data string) (int, []string) {
 		logger.LogTracef("IRC - Received PING command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
 		return IrcCommandPing, []string{msg.Params[0]}
 	case "MODE":
-		logger.LogTracef("IRC - Received PING command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
+		logger.LogTracef("IRC - Received MODE command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
 		return IrcCommandMode, msg.Params
 	default:
 		logger.LogWarnf("IRC - Received unknown command '%s'", msg.Command)
