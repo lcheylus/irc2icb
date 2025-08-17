@@ -337,6 +337,10 @@ func parseIcbStatus(category string, content string, icb_conn net.Conn, irc_conn
 			group := content[len(ICB_JOIN):]
 			logger.LogInfof("ICB - Current group = '%s'", group)
 			irc.IrcSendNotice(irc_conn, "*** :ICB Status Message: %s", content)
+
+			// TODO First login => get groups/users and send IRC JOIN messages
+			if IcbGroupCurrent == "" {
+			}
 		}
 		return nil
 	case "Arrive", "Sign-on":
@@ -428,7 +432,7 @@ func icbHandleType(icb_conn net.Conn, msg icbPacket, irc_conn net.Conn, icb_clos
 		irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_MOTD"], ":- ICB server: %s", icbProtocolInfo.ServerId)
 		irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_ENDOFMOTD"], ":End of MOTD command")
 
-		logger.LogInfof("ICB - Logged to server for nick %s", irc.IrcNick)
+		logger.LogInfof("ICB - Logged to server for nick %s in group '%s'", irc.IrcNick, irc.IrcPassword)
 		icbLoggedIn = true
 
 	// Open Message
@@ -525,7 +529,9 @@ func icbHandleType(icb_conn net.Conn, msg icbPacket, irc_conn net.Conn, icb_clos
 		logger.LogDebugf("ICB - ICB Host ID = %s", icbProtocolInfo.HostId)
 		logger.LogDebugf("ICB - ICB Server ID = %s", icbProtocolInfo.ServerId)
 
+		// IRC password is used to set default group for login
 		icbSendLogin(icb_conn, irc.IrcNick, irc.IrcPassword, irc.IrcUser)
+
 	// Beep
 	case icbPacketType["M_BEEP"]:
 		fields := getIcbPacketFields(msg.Data)
@@ -629,8 +635,9 @@ func IcbSendPrivatemsg(conn net.Conn, nick string, msg string) error {
 // Inputs:
 // - conn (net.Conn): connection to ICB server
 // - nick (string): nickname for login
-// - pass (string): password for login
+// - group (string): default group to join
 // - username (string): username for login
+// No password sent to ICB server for login
 //
 // Format for login packet (client to server)
 // Packet Type: 'a' (Login)
@@ -648,12 +655,11 @@ func IcbSendPrivatemsg(conn net.Conn, nick string, msg string) error {
 //
 // Thus the ICB Login Packet has the following layout:
 // aLoginid^ANickname^ADefaultGroup^ACommand^APassword^AGroupStatus^AProtocolLevel
-func icbSendLogin(conn net.Conn, nick string, pass string, username string) error {
-	group := "slac"
+func icbSendLogin(conn net.Conn, nick string, group string, username string) error {
+	const login_cmd = "login"
 
-	login_cmd := "login"
-
-	packet := []byte(fmt.Sprintf("%s%s\001%s\001%s\001%s\001%s", icbPacketType["M_LOGIN"], username, nick, group, login_cmd, pass))
+	// No password => sent blank
+	packet := []byte(fmt.Sprintf("%s%s\001%s\001%s\001%s\001%s", icbPacketType["M_LOGIN"], username, nick, group, login_cmd, ""))
 
 	// Add packet length as prefix
 	if len(packet) > 255 {
