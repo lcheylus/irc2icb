@@ -205,7 +205,6 @@ func isAlphanumeric(s string) bool {
 func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int) {
 	var icb_conn net.Conn
 	var icb_ch chan struct{}
-	var password_invalid bool = false
 
 	defer irc_conn.Close()
 
@@ -258,11 +257,8 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 		case irc.IrcCommandNick:
 			// Check if password is defined and valid (parsed from IRC PASS command)
 			if len(irc.IrcPassword) == 0 {
-				irc.IrcSendRaw(irc_conn, "ERROR :ICB password must be defined for nick "+irc.IrcNick)
-				logger.LogError("ICB password must be defined for nick " + irc.IrcNick)
-				break
-			}
-			if password_invalid {
+				irc.IrcSendRaw(irc_conn, "ERROR :IRC password must be defined for nick "+irc.IrcNick+" (used as group for first ICB login)")
+				logger.LogError("IRC password must be defined for nick " + irc.IrcNick)
 				break
 			}
 			// TODO Handle case if already connected to ICB server => change NICK
