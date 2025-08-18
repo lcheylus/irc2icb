@@ -349,9 +349,9 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			irc.IrcSendJoin(irc_conn, irc.IrcNick, icb_user.Username, icb_user.Hostname, utils.GroupToChannel(group))
 
 			if icb_group.Topic != "(None)" {
-				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_TOPIC"], fmt.Sprintf("%s :%s", utils.GroupToChannel(group), icb_group.Topic))
+				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_TOPIC"], "%s :%s", utils.GroupToChannel(group), icb_group.Topic)
 			} else {
-				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_NOTOPIC"], fmt.Sprintf("%s :No topic is set", utils.GroupToChannel(group)))
+				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_NOTOPIC"], "%s :No topic is set", utils.GroupToChannel(group))
 			}
 
 			// A list of users currently joined to the channel (with one or more RPL_NAMREPLY (353) numerics
@@ -381,8 +381,8 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 
 			irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_NAMREPLY"], "= %s :%s", utils.GroupToChannel(group), strings.Join(users_with_prefix, " "))
 
-			irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_ENDOFNAMES"], fmt.Sprintf("%s :End of /NAMES list", utils.GroupToChannel(group)))
-			irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_ENDOFWHO"], fmt.Sprintf("%s :End of /WHO list", utils.GroupToChannel(group)))
+			irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_ENDOFNAMES"], "%s :End of /NAMES list", utils.GroupToChannel(group))
+			irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_ENDOFWHO"], "%s :End of /WHO list", utils.GroupToChannel(group))
 
 		case irc.IrcCommandList:
 			logger.LogInfo("IRC - LIST command => send ICB command to list groups and users")
@@ -506,7 +506,7 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 					// RPL_WHOREPLY message format = "<client> <channel> <username> <host> <server> <nick> <flags> :<hopcount> <realname>"
 					irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_WHOREPLY"], "%s %s %s %s %s H :5 %s", utils.GroupToChannel(group), icb_tmp_user.Nick, icb_tmp_user.Hostname, "Server_ICB", icb_tmp_user.Nick, icb_tmp_user.Username)
 				}
-				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_ENDOFWHO"], fmt.Sprintf("%s :End of /WHO list", utils.GroupToChannel(group)))
+				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_ENDOFWHO"], "%s :End of /WHO list", utils.GroupToChannel(group))
 				break
 			}
 			// TODO Case if mask != channel
@@ -551,7 +551,7 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 				}
 				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_WHOISCHANNELS"], "%s :%s#%s", nick, prefix, current_group)
 			}
-			irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_ENDOFWHOIS"], fmt.Sprintf("%s :End of /WHOIS list", nick))
+			irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_ENDOFWHOIS"], "%s :End of /WHOIS list", nick)
 
 		case irc.IrcCommandQuit:
 			logger.LogInfof("IRC - Client disconnected: %s\n", clientAddr)
