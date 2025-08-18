@@ -31,6 +31,7 @@ const (
 	IrcCommandUser
 	IrcCommandJoin
 	IrcCommandList
+	IrcCommandNames
 	IrcCommandMsg // Type for private messages and to a channel/group
 	IrcCommandMode
 	IrcCommandWho
@@ -147,6 +148,9 @@ func IrcCommand(conn net.Conn, data string) (int, []string) {
 	case "LIST":
 		logger.LogTracef("IRC - Received LIST command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
 		return IrcCommandList, nil
+	case "NAMES":
+		logger.LogTracef("IRC - Received NAMES command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
+		return IrcCommandNames, []string{msg.Params[0]}
 	case "PING":
 		logger.LogTracef("IRC - Received PING command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
 		return IrcCommandPing, []string{msg.Params[0]}
