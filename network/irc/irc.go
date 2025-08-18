@@ -135,7 +135,7 @@ func IrcCommand(conn net.Conn, data string) (int, []string) {
 		return IrcCommandJoin, msg.Params
 	case "PART":
 		logger.LogTracef("IRC - Received PART command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
-		if !utils.IsValidChannel(msg.Params[0]) {
+		if !utils.IsValidIrcChannel(msg.Params[0]) {
 			logger.LogErrorf("IRC - invalid channel '%s' in PART command, don't start with #", msg.Params[0])
 		}
 		// Don't need to get channel the user is leaving, == current ICB group

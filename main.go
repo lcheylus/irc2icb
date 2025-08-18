@@ -236,8 +236,8 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			logger.LogTracef("IRC - Received message source = '%s' - content = '%s'", src, content)
 
 			// Message sent to group
-			if utils.IsValidChannel(src) {
-				group := utils.FromChannel(src)
+			if utils.IsValidIrcChannel(src) {
+				group := utils.GroupFromChannel(src)
 				logger.LogInfof("IRC - Send message in group '%s'", group)
 
 				if icb.IcbGroupCurrent != group {
@@ -296,7 +296,7 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			var group string
 			var icb_group *icb.IcbGroup
 
-			if !utils.IsValidChannel(params[0]) {
+			if !utils.IsValidIrcChannel(params[0]) {
 				logger.LogErrorf("IRC - invalid group '%s' (don't start with #)", params[0])
 				irc.IrcSendRaw(irc_conn, "ERROR :Invalid syntax for group '%s' in join (must start with #)", params[0])
 				break
@@ -324,9 +324,9 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 
 				// Leave previous group
 				if icb.IcbGroupCurrent != "" {
-					logger.LogInfof("IRC - JOIN command => leave previous channel '%s'", utils.ToChannel(icb.IcbGroupCurrent))
+					logger.LogInfof("IRC - JOIN command => leave previous channel '%s'", utils.GroupToChannel(icb.IcbGroupCurrent))
 					icb_user := icb.IcbGetUser(irc.IrcNick)
-					irc.IrcSendPart(irc_conn, irc.IrcNick, icb_user.Username, icb_user.Hostname, utils.ToChannel(icb.IcbGroupCurrent))
+					irc.IrcSendPart(irc_conn, irc.IrcNick, icb_user.Username, icb_user.Hostname, utils.GroupToChannel(icb.IcbGroupCurrent))
 				}
 
 				logger.LogDebugf("IRC - JOIN command => send ICB command to join group '%s'", group)
@@ -345,12 +345,12 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			icb_user := icb.IcbGetUser(irc.IrcNick)
 
 			// Send IRC JOIN message
-			irc.IrcSendJoin(irc_conn, irc.IrcNick, icb_user.Username, icb_user.Hostname, utils.ToChannel(group))
+			irc.IrcSendJoin(irc_conn, irc.IrcNick, icb_user.Username, icb_user.Hostname, utils.GroupToChannel(group))
 
 			if icb_group.Topic != "(None)" {
-				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_TOPIC"], fmt.Sprintf("%s :%s", utils.ToChannel(group), icb_group.Topic))
+				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_TOPIC"], fmt.Sprintf("%s :%s", utils.GroupToChannel(group), icb_group.Topic))
 			} else {
-				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_NOTOPIC"], fmt.Sprintf("%s :No topic is set", utils.ToChannel(group)))
+				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_NOTOPIC"], fmt.Sprintf("%s :No topic is set", utils.GroupToChannel(group)))
 			}
 
 			// A list of users currently joined to the channel (with one or more RPL_NAMREPLY (353) numerics
@@ -367,12 +367,12 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			// Send IRC RPL_NAMREPLY and RPL_WHO_REPLY codes for each user in group
 			for _, user := range users {
 				icb_tmp_user = icb.IcbGetUser(user)
-				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_NAMREPLY"], "= %s :%s", utils.ToChannel(group), irc.IrcGetNickWithPrefix(user, icb_tmp_user.Moderator))
+				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_NAMREPLY"], "= %s :%s", utils.GroupToChannel(group), irc.IrcGetNickWithPrefix(user, icb_tmp_user.Moderator))
 				// RPL_WHOREPLY message format = "<client> <channel> <username> <host> <server> <nick> <flags> :<hopcount> <realname>"
-				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_WHOREPLY"], "%s %s %s %s %s H :5 %s", utils.ToChannel(group), icb_tmp_user.Nick, icb_tmp_user.Hostname, "Server_ICB", icb_tmp_user.Nick, icb_tmp_user.Username)
+				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_WHOREPLY"], "%s %s %s %s %s H :5 %s", utils.GroupToChannel(group), icb_tmp_user.Nick, icb_tmp_user.Hostname, "Server_ICB", icb_tmp_user.Nick, icb_tmp_user.Username)
 			}
-			irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_ENDOFNAMES"], fmt.Sprintf("%s :End of /NAMES list", utils.ToChannel(group)))
-			irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_ENDOFWHO"], fmt.Sprintf("%s :End of /WHO list", utils.ToChannel(group)))
+			irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_ENDOFNAMES"], fmt.Sprintf("%s :End of /NAMES list", utils.GroupToChannel(group)))
+			irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_ENDOFWHO"], fmt.Sprintf("%s :End of /WHO list", utils.GroupToChannel(group)))
 
 		case irc.IrcCommandList:
 			logger.LogInfo("IRC - LIST command => send ICB command to list groups and users")
@@ -381,14 +381,14 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			// TODO Filter groups with IRC command "LIST" paramaters
 			for _, group := range icb.IcbGroups {
 				logger.LogDebugf("ICB - [Group] Name = %s - Topic = '%s' - %d users %q", group.Name, group.Topic, len(group.Users), group.Users)
-				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_LIST"], "%s %d :%s", utils.ToChannel(group.Name), len(group.Users), group.Topic)
+				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_LIST"], "%s %d :%s", utils.GroupToChannel(group.Name), len(group.Users), group.Topic)
 			}
 			irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_LISTEND"], ":End of /LIST")
 			logger.LogDebugf("IRC - Send reply to LIST command - nick = %s", irc.IrcNick)
 
 		case irc.IrcCommandMode:
 			logger.LogInfof("IRC - MODE command => parameters = %q", params)
-			if !utils.IsValidChannel(params[0]) || utils.FromChannel(params[0]) != icb.IcbGroupCurrent {
+			if !utils.IsValidIrcChannel(params[0]) || utils.GroupFromChannel(params[0]) != icb.IcbGroupCurrent {
 				logger.LogDebugf("IRC - MODE command not for current ICB group => nothing to do - params = %q", params)
 				// TODO Return message for error
 				break
@@ -431,7 +431,7 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			}
 
 			// mask = channel
-			if utils.IsValidChannel(params[0]) {
+			if utils.IsValidIrcChannel(params[0]) {
 				logger.LogDebug("ICB - WHO command => query groups and users")
 
 				icb.IcbResetGroups()
@@ -439,7 +439,7 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 				icb.IcbQueryWho(icb_conn)
 
 				// Check if group exists in ICB groups
-				group := utils.FromChannel(params[0])
+				group := utils.GroupFromChannel(params[0])
 				icb_group := icb.IcbGetGroup(group)
 				if icb_group == nil {
 					logger.LogErrorf("ICB - WHO command => unknown group '%s'", group)
@@ -452,9 +452,9 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 				for _, user := range icb_group.Users {
 					icb_tmp_user = icb.IcbGetUser(user)
 					// RPL_WHOREPLY message format = "<client> <channel> <username> <host> <server> <nick> <flags> :<hopcount> <realname>"
-					irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_WHOREPLY"], "%s %s %s %s %s H :5 %s", utils.ToChannel(group), icb_tmp_user.Nick, icb_tmp_user.Hostname, "Server_ICB", icb_tmp_user.Nick, icb_tmp_user.Username)
+					irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_WHOREPLY"], "%s %s %s %s %s H :5 %s", utils.GroupToChannel(group), icb_tmp_user.Nick, icb_tmp_user.Hostname, "Server_ICB", icb_tmp_user.Nick, icb_tmp_user.Username)
 				}
-				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_ENDOFWHO"], fmt.Sprintf("%s :End of /WHO list", utils.ToChannel(group)))
+				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_ENDOFWHO"], fmt.Sprintf("%s :End of /WHO list", utils.GroupToChannel(group)))
 				break
 			}
 			// TODO Case if mask != channel
