@@ -23,3 +23,12 @@ func GroupToChannel(group string) string {
 func GroupFromChannel(channel string) string {
 	return channel[1:]
 }
+
+// Comparison function between 2 users' nick
+// => sort by moderator status (starts with @)
+func CompareUser(user1, user2 string) bool {
+	if strings.HasPrefix(user1, "@") {
+		return true
+	}
+	return false
+}
