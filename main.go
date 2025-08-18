@@ -460,6 +460,47 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			// TODO Case if mask != channel
 			logger.LogInfof("ICB - WHO command => (TODO) case not handled for mask '%s'", params[0])
 
+		case irc.IrcCommandWhois:
+			// This command is used to query information about a particular user.
+			// The server SHOULD answer this command with numeric messages with information about the nick.
+			logger.LogInfof("IRC - WHOIS command => params = %q", params)
+
+			icb.IcbResetGroups()
+			icb.IcbResetUsers()
+			icb.IcbQueryWho(icb_conn)
+
+			nick := params[0]
+			icb_user := icb.IcbGetUser(nick)
+			if icb_user == nil {
+				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["ERR_NOSUCHNICK"], "%s :No such nick", nick)
+				break
+			}
+
+			// Send replies for WHOIS nick
+			irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_WHOISUSER"], "%s %s %s * :no realname for ICB", nick, icb_user.Username, icb_user.Hostname)
+			// TODO Use ICB infos from Protocol packet
+			irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_WHOISSERVER"], "%s :%s", "Server_ICB", "ICB server")
+			irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_WHOISIDLE"], "%s %d %d :seconds idle, signon time", nick, icb_user.Idle, icb_user.LoginTime.Unix())
+
+			// Get current ICB group for nick
+			var current_group string = ""
+			for _, group := range icb.IcbGroups {
+				if group.IcbUserInGroup(nick) {
+					current_group = group.Name
+				}
+			}
+
+			if current_group != "" {
+				var prefix string
+				if icb_user.Moderator {
+					prefix = "@"
+				} else {
+					prefix = ""
+				}
+				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_WHOISCHANNELS"], "%s :%s#%s", nick, prefix, current_group)
+			}
+			irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_ENDOFWHOIS"], fmt.Sprintf("%s :End of /WHOIS list", nick))
+
 		case irc.IrcCommandQuit:
 			logger.LogInfof("IRC - Client disconnected: %s\n", clientAddr)
 			close(icb_ch)

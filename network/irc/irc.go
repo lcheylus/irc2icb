@@ -34,6 +34,7 @@ const (
 	IrcCommandMsg // Type for private messages and to a channel/group
 	IrcCommandMode
 	IrcCommandWho
+	IrcCommandWhois
 	IrcCommandPing
 	IrcCommandQuit
 	IrcCommandUnknown
@@ -155,6 +156,9 @@ func IrcCommand(conn net.Conn, data string) (int, []string) {
 	case "WHO":
 		logger.LogTracef("IRC - Received WHO command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
 		return IrcCommandWho, msg.Params
+	case "WHOIS":
+		logger.LogTracef("IRC - Received WHOIS command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
+		return IrcCommandWhois, msg.Params
 	default:
 		logger.LogWarnf("IRC - Received unknown command '%s'", msg.Command)
 	}
