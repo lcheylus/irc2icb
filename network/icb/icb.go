@@ -48,7 +48,10 @@ const (
 )
 
 const (
-	ICB_JOIN string = "You are now in group " // ICB Status message when joining a group
+	ICB_JOIN      string = "You are now in group " // ICB Status message when joining a group
+	ICB_TOPIC     string = "The topic is: "        // ICB Command generic output to get group's topic
+	ICB_NOTOPIC   string = "The topic is not set." // ICB Command generic output when group's topic not set
+	ICB_TOPICNONE string = "(None)"                // ICB topic when undefined
 )
 
 // Type to handle variable parsed from ICB Protocol packet
@@ -255,6 +258,20 @@ func parseIcbGenericCommandOutput(data string, irc_conn net.Conn) {
 		// Generic command output
 		logger.LogTracef("ICB - [Generic] '%s'", data)
 
+		// Case to get topic for current group with no topic defined
+		if len(data) != 0 && data == ICB_NOTOPIC {
+			logger.LogDebug("ICB - No topic set for current group")
+			irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_NOTOPIC"], "%s :No topic is set", utils.GroupToChannel(IcbGroupCurrent))
+			return
+		}
+		// Case to get topic for current group with topic defined
+		if len(data) != 0 && strings.HasPrefix(data, ICB_TOPIC) {
+			topic := data[len(ICB_TOPIC):]
+			logger.LogDebugf("ICB - Get topic for current group = '%s'", topic)
+			irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_TOPIC"], "%s :%s", utils.GroupToChannel(IcbGroupCurrent), topic)
+			return
+		}
+
 		// Send datas to IRC client via notification
 		if len(data) != 0 && data != " " {
 			err := irc.IrcSendNotice(irc_conn, "*** :%s", data)
@@ -329,7 +346,6 @@ func parseIcbStatus(category string, content string, icb_conn net.Conn, irc_conn
 	}
 
 	// TODO Parse Status Message: Status, Name, Topic, Pass, Boot
-
 	switch category {
 	case "Status":
 		if !strings.HasPrefix(content, ICB_JOIN) {
@@ -346,6 +362,7 @@ func parseIcbStatus(category string, content string, icb_conn net.Conn, irc_conn
 		return nil
 	case "Arrive", "Sign-on":
 		// content = 'FoxySend (foxsend@host) entered group'
+		// TODO case if nick contains non alphanumeri chars
 		re, _ := regexp.Compile(`^(\w+) \((\w+)@(.+)\) entered group$`)
 		matches := re.FindStringSubmatch(content)
 		if matches == nil {
@@ -356,6 +373,7 @@ func parseIcbStatus(category string, content string, icb_conn net.Conn, irc_conn
 		}
 	case "Depart":
 		// content = 'FoxySend (foxsend@host) just left'
+		// TODO case if nick contains non alphanumeri chars
 		re, _ := regexp.Compile(`^(\w+) \((\w+)@(.+)\) just left$`)
 		matches := re.FindStringSubmatch(content)
 		if matches == nil {
@@ -366,6 +384,7 @@ func parseIcbStatus(category string, content string, icb_conn net.Conn, irc_conn
 		}
 	case "Sign-off":
 		// content = 'FoxySend (foxsend@host) has signed off.'
+		// TODO case if nick contains non alphanumeri chars
 		re, _ := regexp.Compile(`^(\w+) \((\w+)@(.+)\) (.+)$`)
 		matches := re.FindStringSubmatch(content)
 		if matches == nil {
@@ -380,6 +399,20 @@ func parseIcbStatus(category string, content string, icb_conn net.Conn, irc_conn
 				reason = matches[4]
 			}
 			irc.IrcSendRaw(irc_conn, ":%s!%s@%s QUIT :%s", matches[1], matches[2], matches[3], reason)
+		}
+	case "Topic":
+		// content = 'Foxy changed the topic to "*slump*"'
+		re, _ := regexp.Compile(`^(.+) changed the topic to "(.+)"$`)
+		matches := re.FindStringSubmatch(content)
+		if matches == nil {
+			logger.LogErrorf("ICB - Status %s: unable to find infos for nick/topic in content '%s'", category, content)
+		} else {
+			logger.LogDebugf("ICB - User changed topic for current group - nick = '%s' topic = '%s'", matches[1], matches[2])
+			if matches[2] != ICB_TOPICNONE {
+				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_TOPIC"], "%s :%s", utils.GroupToChannel(IcbGroupCurrent), matches[2])
+			} else {
+				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_NOTOPIC"], "%s :No topic is set", utils.GroupToChannel(IcbGroupCurrent))
+			}
 		}
 	case "No-Pass":
 		irc.IrcSendNotice(irc_conn, "*** :ICB Status Message: %s", content)
@@ -733,6 +766,30 @@ func IcbSendCommand(conn net.Conn, args string) error {
 	packet = preprendPacketLength(packet)
 
 	logger.LogTracef("ICB - Command packet args = '%s' - packet = %v - length = %d", args, packet, len(packet)-1)
+
+	_, err := conn.Write(packet)
+	if err != nil {
+		logger.LogDebugf("ICB - Error when sending Command packet")
+		// TODO how to handle error if unable to send message
+	} else {
+		logger.LogDebugf("ICB - Send Command packet to server")
+	}
+
+	return err
+}
+
+// Send ICB Command packet to set/get group topic
+// If input topic = "", get current topic
+// Otherwise, set topic for current group ; topic = "(None)" for undefined
+func IcbSendTopic(conn net.Conn, topic string) error {
+	const topic_cmd = "topic"
+
+	packet := []byte(fmt.Sprintf("%s%s\001%s", icbPacketType["M_COMMAND"], topic_cmd, topic))
+	packet = preprendPacketLength(packet)
+
+	// TODO Check packet size < max packet length (255)
+
+	logger.LogTracef("ICB - Command packet to set topic - packet = %v - length = %d", packet, len(packet)-1)
 
 	_, err := conn.Write(packet)
 	if err != nil {

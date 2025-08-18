@@ -344,7 +344,7 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			// Send IRC JOIN message
 			irc.IrcSendJoin(irc_conn, irc.IrcNick, icb_user.Username, icb_user.Hostname, utils.GroupToChannel(group))
 
-			if icb_group.Topic != "(None)" {
+			if icb_group.Topic != icb.ICB_TOPICNONE {
 				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_TOPIC"], "%s :%s", utils.GroupToChannel(group), icb_group.Topic)
 			} else {
 				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_NOTOPIC"], "%s :No topic is set", utils.GroupToChannel(group))
@@ -548,6 +548,44 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_WHOISCHANNELS"], "%s :%s#%s", nick, prefix, current_group)
 			}
 			irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_ENDOFWHOIS"], "%s :End of /WHOIS list", nick)
+
+		case irc.IrcCommandTopic:
+			logger.LogInfof("IRC - TOPIC command params = %q", params)
+
+			// Get topic for current group => get topic from ICB with topic = ""
+			// Reply from parsing Generic command output
+			if len(params) == 1 && params[0] == utils.GroupToChannel(icb.IcbGroupCurrent) {
+				icb.IcbSendTopic(icb_conn, "")
+				break
+			}
+			// Get topic for another group
+			if len(params) == 1 && params[0] != utils.GroupToChannel(icb.IcbGroupCurrent) {
+				group := icb.IcbGetGroup(utils.GroupFromChannel(params[0]))
+				if group == nil {
+					irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["ERR_NOSUCHCHANNEL"], "%s :No such channel", params[0])
+					break
+				}
+				if group.Topic == icb.ICB_TOPICNONE {
+					irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_NOTOPIC"], "%s :No topic is set", utils.GroupToChannel(group.Name))
+					break
+				} else {
+					irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_TOPIC"], "%s :%s", utils.GroupToChannel(group.Name), group.Topic)
+					break
+				}
+			}
+
+			// Set/delete topic
+			if params[0] != utils.GroupToChannel(icb.IcbGroupCurrent) {
+				logger.LogWarnf("IRC - invalid channel '%s' for TOPIC command", params[0])
+				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["ERR_NOTONCHANNEL"], "%s :You're not on that channel", params[0])
+				break
+			}
+			if params[1] == "" {
+				// Case to "delete" topic for current group
+				icb.IcbSendTopic(icb_conn, icb.ICB_TOPICNONE)
+			} else {
+				icb.IcbSendTopic(icb_conn, params[1])
+			}
 
 		case irc.IrcCommandQuit:
 			logger.LogInfof("IRC - Client disconnected: %s\n", clientAddr)

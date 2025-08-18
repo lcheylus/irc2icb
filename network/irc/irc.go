@@ -36,6 +36,7 @@ const (
 	IrcCommandMode
 	IrcCommandWho
 	IrcCommandWhois
+	IrcCommandTopic
 	IrcCommandPing
 	IrcCommandQuit
 	IrcCommandUnknown
@@ -142,18 +143,12 @@ func IrcCommand(conn net.Conn, data string) (int, []string) {
 		}
 		// Don't need to get channel the user is leaving, == current ICB group
 		return IrcCommandNop, nil
-	case "QUIT":
-		logger.LogTracef("IRC - Received QUIT command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
-		return IrcCommandQuit, nil
 	case "LIST":
 		logger.LogTracef("IRC - Received LIST command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
 		return IrcCommandList, nil
 	case "NAMES":
 		logger.LogTracef("IRC - Received NAMES command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
 		return IrcCommandNames, []string{msg.Params[0]}
-	case "PING":
-		logger.LogTracef("IRC - Received PING command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
-		return IrcCommandPing, []string{msg.Params[0]}
 	case "MODE":
 		logger.LogTracef("IRC - Received MODE command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
 		return IrcCommandMode, msg.Params
@@ -163,6 +158,20 @@ func IrcCommand(conn net.Conn, data string) (int, []string) {
 	case "WHOIS":
 		logger.LogTracef("IRC - Received WHOIS command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
 		return IrcCommandWhois, msg.Params
+	case "TOPIC":
+		logger.LogTracef("IRC - Received TOPIC command  - params = %s - trailing = '%s'", msg.Params, msg.Trailing)
+		// Case for get topic => no trailing
+		if msg.Trailing == "" && !strings.HasSuffix(data, ":") {
+			return IrcCommandTopic, []string{msg.Params[0]}
+		} else {
+			return IrcCommandTopic, []string{msg.Params[0], msg.Trailing}
+		}
+	case "PING":
+		logger.LogTracef("IRC - Received PING command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
+		return IrcCommandPing, []string{msg.Params[0]}
+	case "QUIT":
+		logger.LogTracef("IRC - Received QUIT command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
+		return IrcCommandQuit, nil
 	default:
 		logger.LogWarnf("IRC - Received unknown command '%s'", msg.Command)
 	}
