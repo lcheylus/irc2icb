@@ -44,6 +44,7 @@ var IrcReplyCodes = map[string]string{
 	"ERR_NOSUCHNICK":       "401",
 	"ERR_NOSUCHCHANNEL":    "403",
 	"ERR_CANNOTSENDTOCHAN": "404",
+	"ERR_NOTONCHANNEL":     "442",
 
 	"ERR_NEEDMOREPARAMS": "461",
 }
