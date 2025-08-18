@@ -27,13 +27,21 @@ var IrcReplyCodes = map[string]string{
 	"RPL_LIST":      "322",
 	"RPL_LISTEND":   "323",
 
-	"RPL_WHOREPLY":   "352",
-	"RPL_ENDOFWHO":   "315",
+	"RPL_WHOREPLY": "352",
+	"RPL_ENDOFWHO": "315",
+
+	"RPL_WHOISUSER":     "311",
+	"RPL_WHOISSERVER":   "312",
+	"RPL_WHOISCHANNELS": "319",
+	"RPL_WHOISIDLE":     "317",
+	"RPL_ENDOFWHOIS":    "318",
+
 	"RPL_NOTOPIC":    "331",
 	"RPL_TOPIC":      "332",
 	"RPL_NAMREPLY":   "353",
 	"RPL_ENDOFNAMES": "366",
 
+	"ERR_NOSUCHNICK":       "401",
 	"ERR_NOSUCHCHANNEL":    "403",
 	"ERR_CANNOTSENDTOCHAN": "404",
 
