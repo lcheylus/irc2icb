@@ -364,14 +364,23 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			}
 
 			var icb_tmp_user *icb.IcbUser
+			var users_with_prefix []string
 
-			// Send IRC RPL_NAMREPLY and RPL_WHO_REPLY codes for each user in group
+			// Send RPL_WHO_REPLY codes for each user in group
 			for _, user := range users {
 				icb_tmp_user = icb.IcbGetUser(user)
-				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_NAMREPLY"], "= %s :%s", utils.GroupToChannel(group), irc.IrcGetNickWithPrefix(user, icb_tmp_user.Moderator))
+				users_with_prefix = append(users_with_prefix, irc.IrcGetNickWithPrefix(user, icb_tmp_user.Moderator))
+
 				// RPL_WHOREPLY message format = "<client> <channel> <username> <host> <server> <nick> <flags> :<hopcount> <realname>"
 				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_WHOREPLY"], "%s %s %s %s %s H :5 %s", utils.GroupToChannel(group), icb_tmp_user.Nick, icb_tmp_user.Hostname, "Server_ICB", icb_tmp_user.Nick, icb_tmp_user.Username)
 			}
+			// Sort list of users by moderator status
+			sort.SliceStable(users_with_prefix, func(i, j int) bool {
+				return utils.CompareUser(users_with_prefix[i], users_with_prefix[j])
+			})
+
+			irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_NAMREPLY"], "= %s :%s", utils.GroupToChannel(group), strings.Join(users_with_prefix, " "))
+
 			irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_ENDOFNAMES"], fmt.Sprintf("%s :End of /NAMES list", utils.GroupToChannel(group)))
 			irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_ENDOFWHO"], fmt.Sprintf("%s :End of /WHO list", utils.GroupToChannel(group)))
 
