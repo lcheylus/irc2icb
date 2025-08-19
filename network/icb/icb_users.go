@@ -7,6 +7,7 @@ import (
 	"net"
 	"strconv"
 	"time"
+	"unicode"
 
 	logger "irc2icb/utils"
 )
@@ -156,6 +157,23 @@ func stringToTime(s string) (time.Time, error) {
 		return time.Time{}, err
 	}
 	return time.Unix(sec, 0), nil
+}
+
+// Function to check if a string is a valid ICB nickname
+func IcbValidNickname(nick string) bool {
+	if len(nick) == 0 || len(nick) > 12 {
+		return false
+	}
+
+	// Only alphanumeric characters and "-" or "_"
+	for _, ch := range nick {
+		if unicode.IsLetter(ch) || unicode.IsDigit(ch) || ch == '-' || ch == '_' {
+			continue
+		}
+		return false
+	}
+
+	return true
 }
 
 // Add user in global list of users
