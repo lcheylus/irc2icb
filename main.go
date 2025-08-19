@@ -588,16 +588,10 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			}
 
 		case irc.IrcCommandKick:
-			logger.LogInfof("IRC - KICK command params = %q", params)
 			// params[0] = channel
 			// params[1] = "user *( "," user)"
-			// params[2] = reason
-			if params[2] != "" {
-				logger.LogDebugf("IRC - KICK command to kick nick '%s' from channel '%s' - reason = '%s'", params[1], params[0], params[2])
-			} else {
-				logger.LogDebugf("IRC - KICK command to kick nicks '%s' from channel '%s' - No reason", params[1], params[0])
-			}
-			if len(params) != 3 {
+			logger.LogInfof("IRC - KICK command to kick nicks '%s' from channel '%s'", params[1], params[0])
+			if len(params) != 2 {
 				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["ERR_NEEDMOREPARAMS"], "%s :Invalid KICK command, needs more parameters", params[0])
 				break
 			}

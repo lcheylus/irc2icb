@@ -169,7 +169,8 @@ func IrcCommand(conn net.Conn, data string) (int, []string) {
 		}
 	case "KICK":
 		logger.LogTracef("IRC - Received KICK command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
-		return IrcCommandKick, []string{msg.Params[0], msg.Params[1], msg.Trailing}
+		// Trailing = reason for KICK => not used in ICB boot command
+		return IrcCommandKick, []string{msg.Params[0], msg.Params[1]}
 	case "PING":
 		logger.LogTracef("IRC - Received PING command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
 		return IrcCommandPing, []string{msg.Params[0]}
