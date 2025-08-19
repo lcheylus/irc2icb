@@ -52,6 +52,8 @@ const (
 	ICB_TOPIC     string = "The topic is: "        // ICB Command generic output to get group's topic
 	ICB_NOTOPIC   string = "The topic is not set." // ICB Command generic output when group's topic not set
 	ICB_TOPICNONE string = "(None)"                // ICB topic when undefined
+
+	ICB_NOTMODERATOR string = "You aren't the moderator" // ICB Error when user isn't moderator for the current group
 )
 
 // Type to handle variable parsed from ICB Protocol packet
@@ -502,7 +504,12 @@ func icbHandleType(icb_conn net.Conn, msg icbPacket, irc_conn net.Conn, icb_clos
 	case icbPacketType["M_ERROR"]:
 		fields := getIcbPacketFields(msg.Data)
 		logger.LogErrorf("ICB - Received Error Message packet - err = '%s'", fields[0])
-		irc.IrcSendRaw(irc_conn, "ERROR :"+fmt.Sprintf("ICB Error Message: %s", getIcbString(fields[0])))
+
+		if strings.HasPrefix(getIcbString(fields[0]), ICB_NOTMODERATOR) {
+			irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["ERR_CHANOPRIVSNEEDED"], "%s :You're not channel operator", IcbGroupCurrent)
+		} else {
+			irc.IrcSendRaw(irc_conn, "ERROR :"+fmt.Sprintf("ICB Error Message: %s", getIcbString(fields[0])))
+		}
 
 		// TODO Handle case if ICB connection not closed/reset
 		// => ICB Error "Nickname already in use." with reconnection
