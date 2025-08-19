@@ -12,9 +12,11 @@ import (
 )
 
 var (
+	// TODO Use map instead with key = group's name
 	IcbGroups       []*IcbGroup // List of ICB groups
 	IcbGroupCurrent string      // Name of current group (for LIST and NAMES replies)
-	IcbUsers        []*IcbUser  // List of ICB users
+	// TODO Use map instead with key = user's nick
+	IcbUsers []*IcbUser // List of ICB users
 
 	icbGroupReceivedCurrent string        // Name of current group parsed from ICB Generic Command Output
 	icbGroupsReceived       chan struct{} // Channel to signal reception of groups list
