@@ -1,4 +1,5 @@
 irc2icb
-config_test.toml
+*.toml
+!config.toml
 *.log
 Protocol.html
