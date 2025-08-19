@@ -110,6 +110,18 @@ func icbGroupIsPresent(group *IcbGroup) bool {
 	return false
 }
 
+// Get nick of user who is moderator for group
+func (group *IcbGroup) icbGetGroupModerator() string {
+	for _, user_nick := range group.Users {
+		user := IcbGetUser(user_nick)
+		if user.Moderator {
+			return user.Nick
+		}
+	}
+	logger.LogWarnf("ICB - [icbGetGroupModerator] unable to find moderator of group %s", group.Name)
+	return ""
+}
+
 // Get group by name in list of groups
 // Inputs:
 // - name (string): name of group to find
