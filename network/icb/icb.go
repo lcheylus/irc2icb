@@ -65,7 +65,7 @@ type icbProtocolInfos struct {
 
 // Variables for ICB connection
 var (
-	icbLoggedIn bool = false       // ICB logged in status
+	IcbLoggedIn bool = false       // ICB logged in status
 	IcbMode     int  = IcbModeNone // ICB mode to reply to IRC commands
 
 	icbProtocolInfo icbProtocolInfos // Infos for ICB server
@@ -399,6 +399,17 @@ func parseIcbStatus(category string, content string, icb_conn net.Conn, irc_conn
 			}
 			irc.IrcSendRaw(irc_conn, ":%s!%s@%s QUIT :%s", matches[1], matches[2], matches[3], reason)
 		}
+	case "Name":
+		// content = 'Foxy changed nickname to FoxyNew'
+		re, _ := regexp.Compile(`^(.+) changed nickname to (.+)$`)
+		matches := re.FindStringSubmatch(content)
+		if matches == nil {
+			logger.LogErrorf("ICB - Status %s: unable to find infos for nick/new nick in content '%s'", category, content)
+		} else {
+			irc.IrcNick = matches[2]
+			irc.IrcSendRaw(irc_conn, ":%s NICK %s", matches[1], matches[2])
+		}
+
 	case "Topic":
 		// content = 'Foxy changed the topic to "*slump*"'
 		re, _ := regexp.Compile(`^(.+) changed the topic to "(.+)"$`)
@@ -478,7 +489,7 @@ func icbHandleType(icb_conn net.Conn, msg icbPacket, irc_conn net.Conn, icb_clos
 		irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_ENDOFMOTD"], ":End of MOTD command")
 
 		logger.LogInfof("ICB - Logged to server for nick %s in group '%s'", irc.IrcNick, irc.IrcPassword)
-		icbLoggedIn = true
+		IcbLoggedIn = true
 
 	// Open Message
 	case icbPacketType["M_OPEN"]:
@@ -537,7 +548,7 @@ func icbHandleType(icb_conn net.Conn, msg icbPacket, irc_conn net.Conn, icb_clos
 	// Exit
 	case icbPacketType["M_EXIT"]:
 		logger.LogDebug("ICB - Received Exit packet")
-		icbLoggedIn = false
+		IcbLoggedIn = false
 		// Send signal for closed ICB connection
 		close(icb_close)
 	// Command Output
@@ -777,6 +788,7 @@ func IcbJoinGroup(conn net.Conn, group string) error {
 
 // Send ICB Command packet
 func IcbSendCommand(conn net.Conn, args string) error {
+	// TODO Send args as slice of bytes instead of string ?
 	packet := []byte(fmt.Sprintf("%sw\001%s", icbPacketType["M_COMMAND"], args))
 	packet = preprendPacketLength(packet)
 
@@ -827,6 +839,30 @@ func IcbSendBoot(conn net.Conn, user string) error {
 	// TODO Check packet size < max packet length (255)
 
 	logger.LogTracef("ICB - Command packet to boot user from current group - packet = %v - length = %d", packet, len(packet)-1)
+
+	_, err := conn.Write(packet)
+	if err != nil {
+		logger.LogDebugf("ICB - Error when sending Command packet")
+		// TODO how to handle error if unable to send message
+	} else {
+		logger.LogDebugf("ICB - Send Command packet to server")
+	}
+
+	return err
+}
+
+// Send ICB Command packet to change nick
+func IcbSendNick(conn net.Conn, nick string) error {
+	const nick_cmd = "name"
+
+	packet := []byte(fmt.Sprintf("%s%s\001", icbPacketType["M_COMMAND"], nick_cmd))
+	// Send nick as slice of bytes to encode special chars
+	packet = append(packet, []byte(nick)...)
+	packet = preprendPacketLength(packet)
+
+	// TODO Check packet size < max packet length (255)
+
+	logger.LogTracef("ICB - Command packet to change nick - packet = %v - length = %d", packet, len(packet)-1)
 
 	_, err := conn.Write(packet)
 	if err != nil {

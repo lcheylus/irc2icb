@@ -125,9 +125,8 @@ func IrcCommand(conn net.Conn, data string) (int, []string) {
 		logger.LogTracef("IRC - Received PASS command  - password = %s", IrcPassword)
 		return IrcCommandPass, []string{IrcPassword}
 	case "NICK":
-		IrcNick = msg.Params[0]
-		logger.LogTracef("IRC - Received NICK command  - nick = %s", IrcNick)
-		return IrcCommandNick, []string{IrcNick}
+		logger.LogTracef("IRC - Received NICK command  - nick = %s", msg.Params[0])
+		return IrcCommandNick, []string{msg.Params[0]}
 	case "USER":
 		IrcUser = msg.Params[0]
 		IrcRealname = msg.Trailing

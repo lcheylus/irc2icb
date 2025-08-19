@@ -255,26 +255,47 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			logger.LogDebugf("IRC - password (used from ICB group during login) = '%s'", irc.IrcPassword)
 
 		case irc.IrcCommandNick:
-			// Check if password is defined and valid (parsed from IRC PASS command)
-			if len(irc.IrcPassword) == 0 {
-				irc.IrcSendRaw(irc_conn, "ERROR :IRC password must be defined for nick "+irc.IrcNick+" (used as group for first ICB login)")
-				logger.LogError("IRC password must be defined for nick " + irc.IrcNick)
-				break
+			if !icb.IcbLoggedIn {
+				// Connection to ICB server and first login
+
+				// Check if password is defined and valid (parsed from IRC PASS command)
+				if len(irc.IrcPassword) == 0 {
+					irc.IrcSendRaw(irc_conn, "ERROR :IRC password must be defined for nick "+irc.IrcNick+" (used as group for first ICB login)")
+					logger.LogError("IRC password must be defined for nick " + irc.IrcNick)
+					break
+				}
+				irc.IrcNick = params[0]
+
+				icb_conn = icb.IcbConnect(server_addr, server_port)
+				defer icb_conn.Close()
+
+				ip := strings.Split(icb_conn.RemoteAddr().String(), ":")[0]
+				logger.LogInfof("ICB - Connected to server %s (%s) port %d", server_addr, ip, server_port)
+
+				// Channel with no type, to close connection to ICB server
+				icb_ch = make(chan struct{})
+
+				// Loop to read ICB packets from server
+				logger.LogInfo("ICB - Start loop to read packets from server")
+				go icb.GetIcbPackets(icb_conn, irc_conn, icb_ch)
+
+			} else {
+				// Change nick
+				nick := params[0]
+				if nick == irc.IrcNick {
+					irc.IrcSendNotice(irc_conn, "*** :No change, your nick is already %s", nick)
+					break
+				}
+				// Check if param to change nick is valid
+				switch icb.IcbValidNickname(nick) {
+				case icb.ICB_NICK_TOOLONG:
+					irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["ERR_ERRONEUSNICKNAME"], "%s :Nickname too long (length = %d)", nick, len(nick))
+				case icb.ICB_NICK_INVALID:
+					irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["ERR_ERRONEUSNICKNAME"], "%s :Erroneus nickname", nick)
+				default:
+					icb.IcbSendNick(icb_conn, params[0])
+				}
 			}
-			// TODO Handle case if already connected to ICB server => change NICK
-			// Connection to ICB server
-			icb_conn = icb.IcbConnect(server_addr, server_port)
-			defer icb_conn.Close()
-
-			ip := strings.Split(icb_conn.RemoteAddr().String(), ":")[0]
-			logger.LogInfof("ICB - Connected to server %s (%s) port %d", server_addr, ip, server_port)
-
-			// Channel with no type, to close connection to ICB server
-			icb_ch = make(chan struct{})
-
-			// Loop to read ICB packets from server
-			logger.LogInfo("ICB - Start loop to read packets from server")
-			go icb.GetIcbPackets(icb_conn, irc_conn, icb_ch)
 
 		case irc.IrcCommandUser:
 			logger.LogDebugf("IRC - user = %s - realname = '%s'", irc.IrcUser, irc.IrcRealname)

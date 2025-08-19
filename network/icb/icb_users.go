@@ -159,10 +159,22 @@ func stringToTime(s string) (time.Time, error) {
 	return time.Unix(sec, 0), nil
 }
 
+// Return code for validation of ICB nick
+const (
+	ICB_NICK_VALID = iota
+	ICB_NICK_TOOLONG
+	ICB_NICK_INVALID
+)
+
 // Function to check if a string is a valid ICB nickname
-func IcbValidNickname(nick string) bool {
+// Return:
+// - ICB_NICK_VALID if nick is valid
+// - ICB_NICK_TOOLONG if nick is too long
+// - ICB_NICK_INVALID if nick is invalid
+func IcbValidNickname(nick string) int {
+	// If nick length > 12, truncated to length = 12
 	if len(nick) == 0 || len(nick) > 12 {
-		return false
+		return ICB_NICK_TOOLONG
 	}
 
 	// Only alphanumeric characters and "-" or "_"
@@ -170,10 +182,10 @@ func IcbValidNickname(nick string) bool {
 		if unicode.IsLetter(ch) || unicode.IsDigit(ch) || ch == '-' || ch == '_' {
 			continue
 		}
-		return false
+		return ICB_NICK_INVALID
 	}
 
-	return true
+	return ICB_NICK_VALID
 }
 
 // Add user in global list of users
