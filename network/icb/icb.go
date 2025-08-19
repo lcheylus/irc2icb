@@ -798,6 +798,28 @@ func IcbSendTopic(conn net.Conn, topic string) error {
 	return err
 }
 
+// Send ICB Command packet to boot (kick) a user from current group
+func IcbSendBoot(conn net.Conn, user string) error {
+	const boot_cmd = "boot"
+
+	packet := []byte(fmt.Sprintf("%s%s\001%s", icbPacketType["M_COMMAND"], boot_cmd, user))
+	packet = preprendPacketLength(packet)
+
+	// TODO Check packet size < max packet length (255)
+
+	logger.LogTracef("ICB - Command packet to boot user from current group - packet = %v - length = %d", packet, len(packet)-1)
+
+	_, err := conn.Write(packet)
+	if err != nil {
+		logger.LogDebugf("ICB - Error when sending Command packet")
+		// TODO how to handle error if unable to send message
+	} else {
+		logger.LogDebugf("ICB - Send Command packet to server")
+	}
+
+	return err
+}
+
 // Send ICB No-op packet
 func IcbSendNoop(conn net.Conn) error {
 	packet := []byte(icbPacketType["M_NOOP"])
