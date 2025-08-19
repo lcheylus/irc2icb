@@ -37,6 +37,7 @@ const (
 	IrcCommandWho
 	IrcCommandWhois
 	IrcCommandTopic
+	IrcCommandKick
 	IrcCommandPing
 	IrcCommandQuit
 	IrcCommandUnknown
@@ -160,12 +161,15 @@ func IrcCommand(conn net.Conn, data string) (int, []string) {
 		return IrcCommandWhois, msg.Params
 	case "TOPIC":
 		logger.LogTracef("IRC - Received TOPIC command  - params = %s - trailing = '%s'", msg.Params, msg.Trailing)
-		// Case for get topic => no trailing
+		// Case for "get topic" => no trailing
 		if msg.Trailing == "" && !strings.HasSuffix(data, ":") {
 			return IrcCommandTopic, []string{msg.Params[0]}
 		} else {
 			return IrcCommandTopic, []string{msg.Params[0], msg.Trailing}
 		}
+	case "KICK":
+		logger.LogTracef("IRC - Received KICK command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
+		return IrcCommandKick, []string{msg.Params[0], msg.Params[1], msg.Trailing}
 	case "PING":
 		logger.LogTracef("IRC - Received PING command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
 		return IrcCommandPing, []string{msg.Params[0]}
