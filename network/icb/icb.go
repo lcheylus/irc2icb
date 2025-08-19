@@ -347,7 +347,7 @@ func parseIcbStatus(category string, content string, icb_conn net.Conn, irc_conn
 		return fmt.Errorf("invalid Status message - no category defined")
 	}
 
-	// TODO Parse Status Message: Status, Name, Pass, Boot
+	// TODO Parse Status Message: Status, Name, Pass
 	switch category {
 	case "Status":
 		if !strings.HasPrefix(content, ICB_JOIN) {
@@ -413,6 +413,18 @@ func parseIcbStatus(category string, content string, icb_conn net.Conn, irc_conn
 				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_NOTOPIC"], "%s :No topic is set", utils.GroupToChannel(IcbGroupCurrent))
 			}
 		}
+	case "Boot":
+		// content = '<user> was booted.'
+		nick := strings.Split(content, " ")[0]
+		moderator := IcbGetGroup(IcbGroupCurrent).icbGetGroupModerator()
+		if moderator != "" {
+			// Send KICK reply to group's moderator
+			irc.IrcSendRaw(irc_conn, ":%s KICK %s %s :booted", moderator, utils.GroupToChannel(IcbGroupCurrent), nick)
+		} else {
+			irc.IrcSendNotice(irc_conn, "*** :%s was kicked from %s channel", nick, utils.GroupToChannel(IcbGroupCurrent))
+		}
+		return nil
+
 	case "No-Pass":
 		irc.IrcSendNotice(irc_conn, "*** :ICB Status Message: %s", content)
 		return nil
