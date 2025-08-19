@@ -304,11 +304,11 @@ func parseIcbCommandOutput(fields []string, irc_conn net.Conn) error {
 		logger.LogDebugf("ICB - [End of output data from command] %s", getIcbString(fields[1]))
 	// In a who listing, a line of output listing a user
 	case "wl":
-		// TODO Parse fields for users listing
 		logger.LogDebugf("ICB - [User] fields = %q", fields[1:])
 		user, _ := icbParseUser(fields[1:])
-		// Check if group already present in IcbGroups list
 		user.icbPrintUser()
+
+		// Check if group already present in IcbGroups list
 		if !icbUserIsPresent(user) {
 			icbAddUser(user)
 			logger.LogDebugf("ICB - Add user for nick '%s' to list of users", user.Nick)
@@ -345,7 +345,7 @@ func parseIcbStatus(category string, content string, icb_conn net.Conn, irc_conn
 		return fmt.Errorf("invalid Status message - no category defined")
 	}
 
-	// TODO Parse Status Message: Status, Name, Topic, Pass, Boot
+	// TODO Parse Status Message: Status, Name, Pass, Boot
 	switch category {
 	case "Status":
 		if !strings.HasPrefix(content, ICB_JOIN) {
@@ -362,8 +362,7 @@ func parseIcbStatus(category string, content string, icb_conn net.Conn, irc_conn
 		return nil
 	case "Arrive", "Sign-on":
 		// content = 'FoxySend (foxsend@host) entered group'
-		// TODO case if nick contains non alphanumeri chars
-		re, _ := regexp.Compile(`^(\w+) \((\w+)@(.+)\) entered group$`)
+		re, _ := regexp.Compile(`^(.+) \((.+)@(.+)\) entered group$`)
 		matches := re.FindStringSubmatch(content)
 		if matches == nil {
 			logger.LogErrorf("ICB - Status %s: unable to find infos 'nick (user@host)' in content '%s'", category, content)
@@ -373,8 +372,7 @@ func parseIcbStatus(category string, content string, icb_conn net.Conn, irc_conn
 		}
 	case "Depart":
 		// content = 'FoxySend (foxsend@host) just left'
-		// TODO case if nick contains non alphanumeri chars
-		re, _ := regexp.Compile(`^(\w+) \((\w+)@(.+)\) just left$`)
+		re, _ := regexp.Compile(`^(.+) \((.+)@(.+)\) just left$`)
 		matches := re.FindStringSubmatch(content)
 		if matches == nil {
 			logger.LogErrorf("ICB - Status %s: unable to find infos 'nick (user@host)' in content '%s'", category, content)
@@ -384,8 +382,7 @@ func parseIcbStatus(category string, content string, icb_conn net.Conn, irc_conn
 		}
 	case "Sign-off":
 		// content = 'FoxySend (foxsend@host) has signed off.'
-		// TODO case if nick contains non alphanumeri chars
-		re, _ := regexp.Compile(`^(\w+) \((\w+)@(.+)\) (.+)$`)
+		re, _ := regexp.Compile(`^(.+) \((.+)@(.+)\) (.+)$`)
 		matches := re.FindStringSubmatch(content)
 		if matches == nil {
 			logger.LogErrorf("ICB - Status %s: unable to find infos 'nick (user@host)' in content '%s'", category, content)
@@ -512,7 +509,6 @@ func icbHandleType(icb_conn net.Conn, msg icbPacket, irc_conn net.Conn, icb_clos
 
 	// Important Message
 	// Example: category = Mod - content = 'You are still mod of group couch'
-	// TODO Forward message to IRC client
 	case icbPacketType["M_IMPORTANT"]:
 		fields := getIcbPacketFields(msg.Data)
 		category := getIcbString(fields[0])
