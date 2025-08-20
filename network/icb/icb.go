@@ -53,6 +53,8 @@ const (
 	ICB_TOPICNONE string = "(None)"                // ICB topic when undefined
 
 	ICB_NOTMODERATOR string = "You aren't the moderator" // ICB Error when user isn't moderator for the current group
+
+	MAX_PKT_LENGTH int = 256 // Max length for ICB packet (including first by for length)
 )
 
 // Type to handle variable parsed from ICB Protocol packet
@@ -154,7 +156,7 @@ func parseIcbPacket(reader *bufio.Reader) (*icbPacket, error) {
 	}
 	// Length must be at least 1 (to contain the type byte)
 	length := int(lengthByte)
-	if length < 1 || length > 256 {
+	if length < 1 || length > MAX_PKT_LENGTH {
 		return nil, fmt.Errorf("invalid packet length: %d", length)
 	}
 
@@ -617,8 +619,8 @@ func icbHandleType(icb_conn net.Conn, msg icbPacket, irc_conn net.Conn, icb_clos
 
 // Add packet's length as prefix (necessary for ICB packet with format 'Ltd')
 func preprendPacketLength(packet []byte) []byte {
-	if len(packet) > 255 {
-		logger.LogWarnf("ICB - invalid length packet to add prefix - length=%d", len(packet))
+	if len(packet) > MAX_PKT_LENGTH-1 {
+		logger.LogErrorf("ICB - invalid length packet to add prefix - length=%d", len(packet))
 	}
 
 	packet = append(packet, 0)
@@ -716,7 +718,7 @@ func icbSendLogin(conn net.Conn, nick string, group string, username string) err
 	packet := []byte(fmt.Sprintf("%c%s\001%s\001%s\001%s\001%s", icbPacketType["M_LOGIN"], username, nick, group, login_cmd, ""))
 
 	// Add packet length as prefix
-	if len(packet) > 255 {
+	if len(packet) > MAX_PKT_LENGTH {
 		logger.LogDebugf("ICB - invalid Login packet for nick = %s - length = %d > 255", nick, packet, len(packet)-1)
 	}
 	packet = preprendPacketLength(packet)
