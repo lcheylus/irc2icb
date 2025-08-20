@@ -220,6 +220,8 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 	} else {
 		logger.LogDebug("IRC - Send notification to client")
 	}
+	irc.IrcInit()
+	icb.IcbLoggedIn = false
 
 	// Read from connection with IRC client
 	scanner := bufio.NewScanner(irc_conn)

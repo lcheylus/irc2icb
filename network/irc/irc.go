@@ -43,6 +43,14 @@ const (
 	IrcCommandUnknown
 )
 
+// Initialize variables for a new IRC connection
+func IrcInit() {
+	IrcNick = ""
+	IrcPassword = ""
+	IrcUser = ""
+	IrcRealname = ""
+}
+
 // Get nick with prefix to reply to JOIN/NAMES command
 // Prefix format advertise via RPL_ISUPPORT code replies
 // Prefix = @ for operator, + for voice, none for regular user
