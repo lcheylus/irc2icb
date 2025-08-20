@@ -240,7 +240,7 @@ func icbParseUser(fields []string) (*IcbUser, error) {
 
 	// Check if moderator ('m' or '*')
 	user.Moderator = false
-	moderator := getIcbString(fields[0])
+	moderator := fields[0]
 	if moderator != " " {
 		if moderator != "m" && moderator != "*" {
 			logger.LogWarnf("ICB - invalid moderator status = '%s'", moderator)
@@ -248,19 +248,19 @@ func icbParseUser(fields []string) (*IcbUser, error) {
 			user.Moderator = true
 		}
 	}
-	user.Nick = getIcbString(fields[1])
-	user.Idle, err = strconv.Atoi(getIcbString(fields[2]))
+	user.Nick = fields[1]
+	user.Idle, err = strconv.Atoi(fields[2])
 	if err != nil {
-		logger.LogErrorf("ICB - invalid idle time for user %s - value = %s", user.Nick, getIcbString(fields[2]))
+		logger.LogErrorf("ICB - invalid idle time for user %s - value = %s", user.Nick, fields[2])
 	}
 	// Unix time format
-	user.LoginTime, err = stringToTime(getIcbString(fields[4]))
+	user.LoginTime, err = stringToTime(fields[4])
 	if err != nil {
-		logger.LogErrorf("ICB - invalid login time for user %s - value = %s", user.Nick, getIcbString(fields[4]))
+		logger.LogErrorf("ICB - invalid login time for user %s - value = %s", user.Nick, fields[4])
 	}
-	user.Username = getIcbString(fields[5])
-	user.Hostname = getIcbString(fields[6])
-	user.RegStatus = getIcbString(fields[7])
+	user.Username = fields[5]
+	user.Hostname = fields[6]
+	user.RegStatus = fields[7]
 
 	// Add user nick in current group parsed from ICB Generic Command Output if not already present
 	// TODO Check error (return == nil)
