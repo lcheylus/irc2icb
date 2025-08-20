@@ -20,22 +20,22 @@ import (
 
 // Type for ICB message
 // Defined as map to get names programmatically
-var icbPacketType = map[string]string{
-	"M_LOGIN":     "a", // login packet
-	"M_LOGINOK":   "a", // login OK packet from server
-	"M_OPEN":      "b", // open msg to group
-	"M_PERSONAL":  "c", // personal msg
-	"M_STATUS":    "d", // status update message
-	"M_ERROR":     "e", // error message
-	"M_IMPORTANT": "f", // special important announcement
-	"M_EXIT":      "g", // tell other side to exit
-	"M_COMMAND":   "h", // send a command from user
-	"M_CMDOUT":    "i", // output from a command
-	"M_PROTO":     "j", // protocol version information
-	"M_BEEP":      "k", // beep packet
-	"M_PING":      "l", // ping packet
-	"M_PONG":      "m", // return for ping packet
-	"M_NOOP":      "n", // no-op packet
+var icbPacketType = map[string]byte{
+	"M_LOGIN":     'a', // login packet
+	"M_LOGINOK":   'a', // login OK packet from server
+	"M_OPEN":      'b', // open msg to group
+	"M_PERSONAL":  'c', // personal msg
+	"M_STATUS":    'd', // status update message
+	"M_ERROR":     'e', // error message
+	"M_IMPORTANT": 'f', // special important announcement
+	"M_EXIT":      'g', // tell other side to exit
+	"M_COMMAND":   'h', // send a command from user
+	"M_CMDOUT":    'i', // output from a command
+	"M_PROTO":     'j', // protocol version information
+	"M_BEEP":      'k', // beep packet
+	"M_PING":      'l', // ping packet
+	"M_PONG":      'm', // return for ping packet
+	"M_NOOP":      'n', // no-op packet
 }
 
 // Enum with ICB mode to reply to IRC commands
@@ -78,9 +78,9 @@ type icbPacket struct {
 }
 
 // Get ICB packet type (M_xxx)
-// Input: value (string with 1 byte) for type
+// Input: value (byte) for type
 // Output: type (M_xxx)
-func getIcbPacketType(val string) string {
+func getIcbPacketType(val byte) string {
 	for name := range icbPacketType {
 		if icbPacketType[name] == val {
 			return name
@@ -459,7 +459,7 @@ func parseIcbStatus(category string, content string, icb_conn net.Conn, irc_conn
 // - irc_conn (net.Conn): handle for connection to IRC client
 // - icb_close (chan struct{}): channel to close connection to ICB server
 func icbHandleType(icb_conn net.Conn, msg icbPacket, irc_conn net.Conn, icb_close chan struct{}) error {
-	switch string(msg.Type) {
+	switch msg.Type {
 	// Login
 	case icbPacketType["M_LOGINOK"]:
 		logger.LogDebug("ICB - Received Login OK packet from server")
@@ -646,7 +646,7 @@ func IcbSendOpenmsg(conn net.Conn, msg string) error {
 	// TODO Check max size for msg and return error if too long
 	// MAX_SIZE_MSG = 246
 
-	packet := []byte(icbPacketType["M_OPEN"])
+	packet := []byte{icbPacketType["M_OPEN"]}
 	packet = append(packet, []byte(msg)...)
 	packet = preprendPacketLength(packet)
 
@@ -719,7 +719,7 @@ func icbSendLogin(conn net.Conn, nick string, group string, username string) err
 	const login_cmd = "login"
 
 	// No password => sent blank
-	packet := []byte(fmt.Sprintf("%s%s\001%s\001%s\001%s\001%s", icbPacketType["M_LOGIN"], username, nick, group, login_cmd, ""))
+	packet := []byte(fmt.Sprintf("%c%s\001%s\001%s\001%s\001%s", icbPacketType["M_LOGIN"], username, nick, group, login_cmd, ""))
 
 	// Add packet length as prefix
 	if len(packet) > 255 {
@@ -770,7 +770,7 @@ func IcbSendNames(conn net.Conn) error {
 func IcbJoinGroup(conn net.Conn, group string) error {
 	logger.LogInfof("ICB - Send command to join group '%s'", group)
 
-	packet := []byte(fmt.Sprintf("%sg\001%s", icbPacketType["M_COMMAND"], group))
+	packet := []byte(fmt.Sprintf("%cg\001%s", icbPacketType["M_COMMAND"], group))
 	packet = preprendPacketLength(packet)
 
 	logger.LogTracef("ICB - Command packet group = '%s' - packet = %v - length = %d", group, packet, len(packet)-1)
@@ -789,7 +789,7 @@ func IcbJoinGroup(conn net.Conn, group string) error {
 // Send ICB Command packet
 func IcbSendCommand(conn net.Conn, args string) error {
 	// TODO Send args as slice of bytes instead of string ?
-	packet := []byte(fmt.Sprintf("%sw\001%s", icbPacketType["M_COMMAND"], args))
+	packet := []byte(fmt.Sprintf("%cw\001%s", icbPacketType["M_COMMAND"], args))
 	packet = preprendPacketLength(packet)
 
 	logger.LogTracef("ICB - Command packet args = '%s' - packet = %v - length = %d", args, packet, len(packet)-1)
@@ -811,7 +811,7 @@ func IcbSendCommand(conn net.Conn, args string) error {
 func IcbSendTopic(conn net.Conn, topic string) error {
 	const topic_cmd = "topic"
 
-	packet := []byte(fmt.Sprintf("%s%s\001%s", icbPacketType["M_COMMAND"], topic_cmd, topic))
+	packet := []byte(fmt.Sprintf("%c%s\001%s", icbPacketType["M_COMMAND"], topic_cmd, topic))
 	packet = preprendPacketLength(packet)
 
 	// TODO Check packet size < max packet length (255)
@@ -833,7 +833,7 @@ func IcbSendTopic(conn net.Conn, topic string) error {
 func IcbSendBoot(conn net.Conn, user string) error {
 	const boot_cmd = "boot"
 
-	packet := []byte(fmt.Sprintf("%s%s\001%s", icbPacketType["M_COMMAND"], boot_cmd, user))
+	packet := []byte(fmt.Sprintf("%c%s\001%s", icbPacketType["M_COMMAND"], boot_cmd, user))
 	packet = preprendPacketLength(packet)
 
 	// TODO Check packet size < max packet length (255)
@@ -855,7 +855,7 @@ func IcbSendBoot(conn net.Conn, user string) error {
 func IcbSendNick(conn net.Conn, nick string) error {
 	const nick_cmd = "name"
 
-	packet := []byte(fmt.Sprintf("%s%s\001", icbPacketType["M_COMMAND"], nick_cmd))
+	packet := []byte(fmt.Sprintf("%c%s\001", icbPacketType["M_COMMAND"], nick_cmd))
 	// Send nick as slice of bytes to encode special chars
 	packet = append(packet, []byte(nick)...)
 	packet = preprendPacketLength(packet)
@@ -877,7 +877,7 @@ func IcbSendNick(conn net.Conn, nick string) error {
 
 // Send ICB No-op packet
 func IcbSendNoop(conn net.Conn) error {
-	packet := []byte(icbPacketType["M_NOOP"])
+	packet := []byte{icbPacketType["M_NOOP"]}
 	packet = preprendPacketLength(packet)
 
 	logger.LogTracef("ICB - No-op packet - packet = %v - length = %d", packet, len(packet)-1)
@@ -895,7 +895,7 @@ func IcbSendNoop(conn net.Conn) error {
 
 // Send ICB Ping packet
 func icbSendPing(conn net.Conn) error {
-	packet := []byte(icbPacketType["M_PING"])
+	packet := []byte{icbPacketType["M_PING"]}
 	packet = preprendPacketLength(packet)
 
 	logger.LogTracef("ICB - Ping packet - packet = %v - length = %d", packet, len(packet)-1)
