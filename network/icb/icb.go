@@ -637,10 +637,12 @@ func IcbSendOpenmsg(conn net.Conn, msg string) error {
 	// MAX_SIZE_MSG = 246
 
 	packet := []byte{icbPacketType["M_OPEN"]}
-	packet = append(packet, []byte(msg)...)
+	// Translate message to standard ASCII
+	ascii_msg := utils.TransliterateUnicodeToASCII(msg)
+	packet = append(packet, []byte(ascii_msg)...)
 	packet = preprendPacketLength(packet)
 
-	logger.LogTracef("ICB - Open Message packet msg = '%s' - packet = %v - length = %d", msg, packet, len(packet)-1)
+	logger.LogTracef("ICB - Open Message packet msg = '%s' - packet = %v - length = %d", ascii_msg, packet, len(packet)-1)
 
 	_, err := conn.Write(packet)
 	if err != nil {
@@ -664,11 +666,13 @@ func IcbSendPrivatemsg(conn net.Conn, nick string, msg string) error {
 	// TODO Check max size for msg and return error if too long
 	// MAX_SIZE_MSG = 246
 
-	packet := []byte(fmt.Sprintf("%sm\001%s ", icbPacketType["M_COMMAND"], nick))
-	packet = append(packet, []byte(msg)...)
+	packet := []byte(fmt.Sprintf("%cm\001%s ", icbPacketType["M_COMMAND"], nick))
+	// Translate message to standard ASCII
+	ascii_msg := utils.TransliterateUnicodeToASCII(msg)
+	packet = append(packet, []byte(ascii_msg)...)
 	packet = preprendPacketLength(packet)
 
-	logger.LogTracef("ICB - Personal Message packet msg = '%s' - packet = %v - length = %d", msg, packet, len(packet)-1)
+	logger.LogTracef("ICB - Personal Message packet msg = '%s' - packet = %v - length = %d", ascii_msg, packet, len(packet)-1)
 
 	_, err := conn.Write(packet)
 	if err != nil {
