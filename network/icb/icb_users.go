@@ -20,8 +20,8 @@ var (
 	IcbUsers []*IcbUser // List of ICB users
 
 	icbGroupReceivedCurrent string        // Name of current group parsed from ICB Generic Command Output
-	icbGroupsReceived       chan struct{} // Channel to signal reception of groups list
-	icbUsersReceived        chan struct{} // Channel to signal reception of groups list with users
+	chGroupsReceived        chan struct{} // Channel to signal reception of groups list
+	chUsersReceived         chan struct{} // Channel to signal reception of groups list with users
 )
 
 // IcbUser represents a ICB User (datas parsed for Command packet, type='wl')
@@ -72,18 +72,18 @@ func IcbQueryWho(icb_conn net.Conn) {
 	// command => new request for groups/users, useless if request done not long ago.
 
 	// Send ICB command to list groups
-	icbGroupsReceived = make(chan struct{})
+	chGroupsReceived = make(chan struct{})
 	IcbSendList(icb_conn)
 	// Wait reception of groups via ICB
-	<-icbGroupsReceived
+	<-chGroupsReceived
 	logger.LogInfo("ICB - List of groups received")
 
 	// Send ICB command to list users
-	icbUsersReceived = make(chan struct{})
+	chUsersReceived = make(chan struct{})
 	IcbSendNames(icb_conn)
 
 	// Wait reception of users via ICB
-	<-icbUsersReceived
+	<-chUsersReceived
 	logger.LogInfo("ICB - List of users received")
 
 	// Dump list of groups and users received from ICB server

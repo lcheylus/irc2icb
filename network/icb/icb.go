@@ -241,10 +241,10 @@ func parseIcbGenericCommandOutput(data string, irc_conn net.Conn) {
 
 		if IcbMode == IcbModeList {
 			// Send signal for completion of ICB command to get groups
-			close(icbGroupsReceived)
+			chGroupsReceived <- struct{}{}
 		} else if IcbMode == IcbModeNames {
 			// Send signal for completion of ICB command to get groups with users
-			close(icbUsersReceived)
+			chUsersReceived <- struct{}{}
 		}
 		IcbMode = IcbModeNone
 
