@@ -66,6 +66,11 @@ func IcbResetUsers() {
 // - icb_conn (net.Conn): connection to ICB server
 // Append group in IcbGroups list and user in IcbUsers list
 func IcbQueryWho(icb_conn net.Conn) {
+
+	// TODO Add timer not to request groups/users too frequently
+	// Example: JOIN group => after IRC reply to JOIN, IRC client sent a WHO
+	// command => new request for groups/users, useless if request done not long ago.
+
 	// Send ICB command to list groups
 	icbGroupsReceived = make(chan struct{})
 	IcbSendList(icb_conn)
