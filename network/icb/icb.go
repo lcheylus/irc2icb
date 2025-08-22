@@ -344,7 +344,6 @@ func parseIcbStatus(category string, content string, icb_conn net.Conn, irc_conn
 
 	// TODO Parse Status Message: Pass
 	// Register - content = 'Nick registered'
-	// Server - content = 'Unknown command'
 	switch category {
 	case "Status":
 		if !strings.HasPrefix(content, ICB_JOIN) {
@@ -433,6 +432,9 @@ func parseIcbStatus(category string, content string, icb_conn net.Conn, irc_conn
 		}
 		return nil
 
+	case "Server":
+		irc.IrcSendNotice(irc_conn, "*** :ICB Message from Server: %s", content)
+		return nil
 	case "No-Pass":
 		irc.IrcSendNotice(irc_conn, "*** :ICB Status Message: %s", content)
 		return nil
