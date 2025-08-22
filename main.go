@@ -643,6 +643,10 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			irc.IrcSendRaw(irc_conn, "PONG %s", params[0])
 			icb.IcbSendNoop(icb_conn)
 
+		case irc.IrcCommandRawIcb:
+			logger.LogDebugf("IRC - Raw ICB command = '%s'", strings.Join(params, " "))
+			icb.IcbSendRaw(icb_conn, strings.Join(params, " "))
+
 		case irc.IrcCommandNop:
 		case irc.IrcCommandUnknown:
 		default:

@@ -342,7 +342,9 @@ func parseIcbStatus(category string, content string, icb_conn net.Conn, irc_conn
 		return fmt.Errorf("invalid Status message - no category defined")
 	}
 
-	// TODO Parse Status Message: Status, Name, Pass
+	// TODO Parse Status Message: Pass
+	// Register - content = 'Nick registered'
+	// Server - content = 'Unknown command'
 	switch category {
 	case "Status":
 		if !strings.HasPrefix(content, ICB_JOIN) {
@@ -935,6 +937,41 @@ func icbSendPing(conn net.Conn) error {
 		// TODO how to handle error if unable to send message
 	} else {
 		logger.LogDebugf("ICB - Send Ping packet to server")
+	}
+
+	return err
+}
+
+// Send ICB raw command
+// Inputs:
+// - conn (net.Conn): connection to ICB server
+// - msg (string): raw message to send, ',' char replaced par ICB separator '\001'
+// Example: 'hm,nick,msg' => send Personal message to nick
+func IcbSendRaw(conn net.Conn, msg string) error {
+	logger.LogInfo("ICB - Send ICB raw packet")
+
+	// TODO Check max size for msg and return error if too long
+	// MAX_SIZE_MSG = 246
+
+	var packet []byte
+	for _, c := range []byte(msg) {
+		if c == ',' {
+			packet = append(packet, '\001')
+		} else {
+			packet = append(packet, c)
+		}
+	}
+	packet = append(packet, '\x00')
+	packet = preprendPacketLength(packet)
+
+	logger.LogTracef("ICB - Raw packet msg = '%s' - packet = %v - length = %d", msg, packet, len(packet)-1)
+
+	_, err := conn.Write(packet)
+	if err != nil {
+		logger.LogDebugf("ICB - Error when sending Raw packet")
+		// TODO how to handle error if unable to send message
+	} else {
+		logger.LogDebug("ICB - Send Raw packet")
 	}
 
 	return err

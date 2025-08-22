@@ -40,6 +40,7 @@ const (
 	IrcCommandKick
 	IrcCommandPing
 	IrcCommandQuit
+	IrcCommandRawIcb
 	IrcCommandUnknown
 )
 
@@ -184,6 +185,9 @@ func IrcCommand(conn net.Conn, data string) (int, []string) {
 	case "QUIT":
 		logger.LogTracef("IRC - Received QUIT command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
 		return IrcCommandQuit, nil
+	case "RAWICB":
+		logger.LogTracef("IRC - Received RAWICB command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
+		return IrcCommandRawIcb, msg.Params
 	default:
 		logger.LogWarnf("IRC - Received unknown command '%s'", msg.Command)
 	}
