@@ -633,19 +633,33 @@ func preprendPacketLength(packet []byte) []byte {
 }
 
 // Send ICB command for open message (to a channel/group)
-func IcbSendOpenmsg(conn net.Conn, msg string) error {
+func IcbSendOpenmsg(conn net.Conn, input string) error {
+	// Translate message to standard ASCII
+	ascii_msg := utils.TransliterateUnicodeToASCII(input)
+
+	// Split input in n strings with length < MAX_INPUT_LENGTH
+	msgs := utils.SplitString(ascii_msg, MAX_INPUT_LENGTH)
+
+	for _, msg := range msgs {
+		// TODO Check error
+		icbSendSingleOpenmsg(conn, msg)
+	}
+
+	return nil
+}
+
+// Send single ICB Open message, length of input message must be < MAX_INPUT_SIZE
+func icbSendSingleOpenmsg(conn net.Conn, msg string) error {
 	logger.LogInfo("ICB - Send command for Open Message packet")
 
 	// TODO Check max size for msg and return error if too long
 	// MAX_SIZE_MSG = 246
 
 	packet := []byte{icbPacketType["PKT_OPEN"]}
-	// Translate message to standard ASCII
-	ascii_msg := utils.TransliterateUnicodeToASCII(msg)
-	packet = append(packet, []byte(ascii_msg)...)
+	packet = append(packet, []byte(msg)...)
 	packet = preprendPacketLength(packet)
 
-	logger.LogTracef("ICB - Open Message packet msg = '%s' - packet = %v - length = %d", ascii_msg, packet, len(packet)-1)
+	logger.LogTracef("ICB - Open Message packet msg = '%s' - packet = %v - length = %d", msg, packet, len(packet)-1)
 
 	_, err := conn.Write(packet)
 	if err != nil {
@@ -663,19 +677,37 @@ func IcbSendOpenmsg(conn net.Conn, msg string) error {
 // - conn (net.Conn): connection to ICB server
 // - nick (string): nickname for destination
 // - msg (string): content of the message
-func IcbSendPrivatemsg(conn net.Conn, nick string, msg string) error {
+func IcbSendPrivatemsg(conn net.Conn, nick string, input string) error {
+	// Translate message to standard ASCII
+	ascii_msg := utils.TransliterateUnicodeToASCII(input)
+
+	// Split input in n strings with length < MAX_INPUT_LENGTH
+	msgs := utils.SplitString(ascii_msg, MAX_INPUT_LENGTH)
+
+	for _, msg := range msgs {
+		// TODO Check error
+		icbSendSinglePrivatemsg(conn, nick, msg)
+	}
+
+	return nil
+}
+
+// Send ICB command for personal message (private)
+// Inputs:
+// - conn (net.Conn): connection to ICB server
+// - nick (string): nickname for destination
+// - msg (string): content of the message, length < MAX_INPUT_SIZE
+func icbSendSinglePrivatemsg(conn net.Conn, nick string, msg string) error {
 	logger.LogInfo("ICB - Send command for Personal Message packet")
 
 	// TODO Check max size for msg and return error if too long
 	// MAX_SIZE_MSG = 246
 
 	packet := []byte(fmt.Sprintf("%cm\001%s ", icbPacketType["PKT_COMMAND"], nick))
-	// Translate message to standard ASCII
-	ascii_msg := utils.TransliterateUnicodeToASCII(msg)
-	packet = append(packet, []byte(ascii_msg)...)
+	packet = append(packet, []byte(msg)...)
 	packet = preprendPacketLength(packet)
 
-	logger.LogTracef("ICB - Personal Message packet msg = '%s' - packet = %v - length = %d", ascii_msg, packet, len(packet)-1)
+	logger.LogTracef("ICB - Personal Message packet msg = '%s' - packet = %v - length = %d", msg, packet, len(packet)-1)
 
 	_, err := conn.Write(packet)
 	if err != nil {
