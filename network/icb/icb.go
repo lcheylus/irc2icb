@@ -4,6 +4,7 @@ package icb
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"net"
@@ -96,15 +97,15 @@ func getIcbPacketType(val byte) string {
 // Inputs:
 // - icb_conn (net.Conn): handle for connection to ICB server
 // - irc_conn (net.Conn): handle for connection to IRC client
-// - icb_close (chan struct{}): channel to close connection to ICB server
+// - ctx (content.Context): context to check if connection to ICB server is closed
 // TODO return code for errors
 // TODO Add SetReadDeadline for conn and check time-out
-func GetIcbPackets(icb_conn net.Conn, irc_conn net.Conn, icb_close chan struct{}) {
+func GetIcbPackets(icb_conn net.Conn, irc_conn net.Conn, ctx context.Context) {
 	reader := bufio.NewReader(icb_conn)
 
 	for {
 		select {
-		case <-icb_close:
+		case <-ctx.Done():
 			// conn.Close called from main via defer
 			logger.LogInfof("ICB - Close connection to server %s", icb_conn.RemoteAddr().String())
 			goto End
@@ -128,7 +129,7 @@ func GetIcbPackets(icb_conn net.Conn, irc_conn net.Conn, icb_close chan struct{}
 			}
 
 			// TODO check errors
-			icbHandleType(icb_conn, *msg, irc_conn, icb_close)
+			icbHandleType(icb_conn, *msg, irc_conn)
 		}
 	}
 
@@ -449,8 +450,7 @@ func parseIcbStatus(category string, content string, icb_conn net.Conn, irc_conn
 // - icb_conn (net.Conn): handle for connection to ICB server
 // - msg (icbPacket): ICB packet received
 // - irc_conn (net.Conn): handle for connection to IRC client
-// - icb_close (chan struct{}): channel to close connection to ICB server
-func icbHandleType(icb_conn net.Conn, msg icbPacket, irc_conn net.Conn, icb_close chan struct{}) error {
+func icbHandleType(icb_conn net.Conn, msg icbPacket, irc_conn net.Conn) error {
 	switch msg.Type {
 	// Login
 	case icbPacketType["PKT_LOGINOK"]:
@@ -541,8 +541,7 @@ func icbHandleType(icb_conn net.Conn, msg icbPacket, irc_conn net.Conn, icb_clos
 	case icbPacketType["PKT_EXIT"]:
 		logger.LogDebug("ICB - Received Exit packet")
 		IcbLoggedIn = false
-		// Send signal for closed ICB connection
-		close(icb_close)
+		// TODO Send QUIT message with reason to IRC client
 	// Command Output
 	case icbPacketType["PKT_CMDOUT"]:
 		logger.LogDebug("ICB - Received Command Output packet")

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -204,7 +205,6 @@ func isAlphanumeric(s string) bool {
 // - server_port (int): port for ICB server
 func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int) {
 	var icb_conn net.Conn
-	var icb_ch chan struct{}
 
 	defer irc_conn.Close()
 
@@ -222,6 +222,8 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 	}
 	irc.IrcInit()
 	icb.IcbLoggedIn = false
+	// Create context to close connection with ICB server
+	ctx, close_icb_connection := context.WithCancel(context.Background())
 
 	// Read from connection with IRC client
 	scanner := bufio.NewScanner(irc_conn)
@@ -274,12 +276,9 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 				ip := strings.Split(icb_conn.RemoteAddr().String(), ":")[0]
 				logger.LogInfof("ICB - Connected to server %s (%s) port %d", server_addr, ip, server_port)
 
-				// Channel with no type, to close connection to ICB server
-				icb_ch = make(chan struct{})
-
 				// Loop to read ICB packets from server
 				logger.LogInfo("ICB - Start loop to read packets from server")
-				go icb.GetIcbPackets(icb_conn, irc_conn, icb_ch)
+				go icb.GetIcbPackets(icb_conn, irc_conn, ctx)
 
 			} else {
 				// Change nick
@@ -637,7 +636,7 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 
 		case irc.IrcCommandQuit:
 			logger.LogInfof("IRC - Client disconnected: %s\n", clientAddr)
-			close(icb_ch)
+			close_icb_connection()
 
 		case irc.IrcCommandPing:
 			logger.LogDebugf("IRC - Send PONG message")
