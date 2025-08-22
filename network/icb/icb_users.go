@@ -177,8 +177,8 @@ const (
 // - ICB_NICK_TOOLONG if nick is too long
 // - ICB_NICK_INVALID if nick is invalid
 func IcbValidNickname(nick string) int {
-	// If nick length > 12, truncated to length = 12
-	if len(nick) == 0 || len(nick) > 12 {
+	// If nick length > MAX_NICKLEN, truncated to length = MAX_NICKLEN
+	if len(nick) == 0 || len(nick) > MAX_NICKLEN {
 		return ICB_NICK_TOOLONG
 	}
 

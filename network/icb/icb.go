@@ -55,7 +55,9 @@ const (
 
 	ICB_NOTMODERATOR string = "You aren't the moderator" // ICB Error when user isn't moderator for the current group
 
-	MAX_PKT_LENGTH int = 256 // Max length for ICB packet (including first by for length)
+	MAX_PKT_LENGTH   int = 256                                 // Max length for ICB packet (including first by for length)
+	MAX_NICKLEN      int = 12                                  // Max length for ICB nick
+	MAX_INPUT_LENGTH int = 250 - MAX_NICKLEN - MAX_NICKLEN - 6 // Max length for a line in Open/Personal message
 )
 
 // Type to handle variable parsed from ICB Protocol packet
