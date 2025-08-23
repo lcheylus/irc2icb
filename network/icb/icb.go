@@ -72,8 +72,9 @@ type icbProtocolInfos struct {
 
 // Variables for ICB connection
 var (
-	IcbLoggedIn bool = false       // ICB logged in status
-	IcbMode     int  = IcbModeNone // ICB mode to reply to IRC commands
+	IcbLoggedIn  bool = false       // ICB logged in status
+	IcbConnected bool = false       // Status for connection to ICB server
+	IcbMode      int  = IcbModeNone // ICB mode to reply to IRC commands
 
 	icbProtocolInfo icbProtocolInfos // Infos for ICB server
 
@@ -124,6 +125,7 @@ func GetIcbPackets(icb_conn net.Conn, irc_conn net.Conn, ctx context.Context) {
 				if err == io.EOF {
 					// TODO Handle reconnection to ICB server
 					logger.LogInfo("ICB - connection closed by ICB server")
+					IcbConnected = false
 					goto End
 				} else {
 					// TODO Handle read error from ICB server
@@ -358,6 +360,7 @@ func parseIcbStatus(category string, content string, icb_conn net.Conn, irc_conn
 		if !strings.HasPrefix(content, ICB_JOIN) {
 			irc.IrcSendNotice(irc_conn, "*** :ICB Status Message: %s", content)
 		} else {
+			IcbLoggedIn = true
 			group := content[len(ICB_JOIN):]
 
 			// First login => send signal to get ICB groups/users and send IRC replies
@@ -564,7 +567,7 @@ func icbHandleType(icb_conn net.Conn, packet icbPacket, irc_conn net.Conn) error
 	case icbPacketType["PKT_EXIT"]:
 		logger.LogDebug("ICB - Received Exit packet")
 		IcbLoggedIn = false
-		// TODO Send QUIT message with reason to IRC client
+		IcbConnected = false
 	// Command Output
 	case icbPacketType["PKT_CMDOUT"]:
 		logger.LogDebug("ICB - Received Command Output packet")

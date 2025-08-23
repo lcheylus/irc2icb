@@ -213,12 +213,13 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 
 	irc.IrcInit()
 	icb.IcbLoggedIn = false
+	icb.IcbConnected = true
 	// Create context to close connection with ICB server
 	ctx, close_icb_connection := context.WithCancel(context.Background())
 
 	// Read from connection with IRC client
 	scanner := bufio.NewScanner(irc_conn)
-	for scanner.Scan() {
+	for scanner.Scan() && icb.IcbConnected {
 		data := scanner.Text()
 		logger.LogTracef("IRC - Received from client [%s]: %s", clientAddr, data)
 
@@ -626,6 +627,9 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 		}
 	}
 
+	icb.IcbLoggedIn = false
+	logger.LogInfof("IRC - Disconnected from ICB server => stop to handle IRC commands from client")
+	irc.IrcSendNotice(irc_conn, "*** Disconnected from ICB server => proxy stops to reply to IRC commands")
 }
 
 // Process run as daemon
