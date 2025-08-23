@@ -112,7 +112,7 @@ func GetIcbPackets(icb_conn net.Conn, irc_conn net.Conn, ctx context.Context) {
 			logger.LogInfof("ICB - Close connection to server %s", icb_conn.RemoteAddr().String())
 			goto End
 		default:
-			msg, err := parseIcbPacket(reader)
+			packet, err := parseIcbPacket(reader)
 			if err != nil {
 				if err == io.EOF {
 					// TODO Handle reconnection to ICB server
@@ -125,13 +125,13 @@ func GetIcbPackets(icb_conn net.Conn, irc_conn net.Conn, ctx context.Context) {
 				}
 			}
 
-			if len(msg.Data) > 1 {
-				fields := getIcbPacketFields(msg.Data)
+			if len(packet.Data) > 1 {
+				fields := getIcbPacketFields(packet.Data)
 				logger.LogTracef("ICB - ICB message fields = %q", fields)
 			}
 
 			// TODO check errors
-			icbHandleType(icb_conn, *msg, irc_conn)
+			icbHandleType(icb_conn, *packet, irc_conn)
 		}
 	}
 
@@ -454,10 +454,10 @@ func parseIcbStatus(category string, content string, icb_conn net.Conn, irc_conn
 // Handle ICB packet according to type
 // Inputs:
 // - icb_conn (net.Conn): handle for connection to ICB server
-// - msg (icbPacket): ICB packet received
+// - packet (icbPacket): ICB packet received
 // - irc_conn (net.Conn): handle for connection to IRC client
-func icbHandleType(icb_conn net.Conn, msg icbPacket, irc_conn net.Conn) error {
-	switch msg.Type {
+func icbHandleType(icb_conn net.Conn, packet icbPacket, irc_conn net.Conn) error {
+	switch packet.Type {
 	// Login
 	case icbPacketType["PKT_LOGINOK"]:
 		logger.LogDebug("ICB - Received Login OK packet from server")
@@ -492,7 +492,7 @@ func icbHandleType(icb_conn net.Conn, msg icbPacket, irc_conn net.Conn) error {
 	// Open Message
 	case icbPacketType["PKT_OPEN"]:
 		logger.LogDebug("ICB - Received Open Message")
-		fields := getIcbPacketFields(msg.Data)
+		fields := getIcbPacketFields(packet.Data)
 		nickname := fields[0]
 		content := fields[1]
 		logger.LogTracef("ICB - Received Open Message packet - nickname = %s - content = '%s'", nickname, content)
@@ -503,7 +503,7 @@ func icbHandleType(icb_conn net.Conn, msg icbPacket, irc_conn net.Conn) error {
 	// Personal Message
 	case icbPacketType["PKT_PERSONAL"]:
 		logger.LogDebug("Received ICB Personal Message")
-		fields := getIcbPacketFields(msg.Data)
+		fields := getIcbPacketFields(packet.Data)
 		nickname := fields[0]
 		content := fields[1]
 		logger.LogTracef("ICB - Received Personal Message packet - nickname = %s - content = '%s'", nickname, content)
@@ -513,7 +513,7 @@ func icbHandleType(icb_conn net.Conn, msg icbPacket, irc_conn net.Conn) error {
 
 	// Status Message
 	case icbPacketType["PKT_STATUS"]:
-		fields := getIcbPacketFields(msg.Data)
+		fields := getIcbPacketFields(packet.Data)
 		category := fields[0]
 		content := fields[1]
 		logger.LogTracef("ICB - Received Status Message packet - category = %s - content = '%s'", category, content)
@@ -523,7 +523,7 @@ func icbHandleType(icb_conn net.Conn, msg icbPacket, irc_conn net.Conn) error {
 		}
 	// Error Message
 	case icbPacketType["PKT_ERROR"]:
-		fields := getIcbPacketFields(msg.Data)
+		fields := getIcbPacketFields(packet.Data)
 		logger.LogErrorf("ICB - Received Error Message packet - err = '%s'", fields[0])
 
 		if strings.HasPrefix(fields[0], ICB_NOTMODERATOR) {
@@ -538,7 +538,7 @@ func icbHandleType(icb_conn net.Conn, msg icbPacket, irc_conn net.Conn) error {
 	// Important Message
 	// Example: category = Mod - content = 'You are still mod of group couch'
 	case icbPacketType["PKT_IMPORTANT"]:
-		fields := getIcbPacketFields(msg.Data)
+		fields := getIcbPacketFields(packet.Data)
 		category := fields[0]
 		content := fields[1]
 		logger.LogTracef("ICB - Received Important Message packet - category = %s - content = '%s'", category, content)
@@ -551,7 +551,7 @@ func icbHandleType(icb_conn net.Conn, msg icbPacket, irc_conn net.Conn) error {
 	// Command Output
 	case icbPacketType["PKT_CMDOUT"]:
 		logger.LogDebug("ICB - Received Command Output packet")
-		fields := getIcbPacketFields(msg.Data)
+		fields := getIcbPacketFields(packet.Data)
 		err := parseIcbCommandOutput(fields, irc_conn)
 		if err != nil {
 			logger.LogErrorf("ICB - invalid Command Output packet - err = '%s'", err.Error())
@@ -559,7 +559,7 @@ func icbHandleType(icb_conn net.Conn, msg icbPacket, irc_conn net.Conn) error {
 	// Protocol
 	case icbPacketType["PKT_PROTO"]:
 		logger.LogDebug("ICB - Received Protocol packet")
-		fields := getIcbPacketFields(msg.Data)
+		fields := getIcbPacketFields(packet.Data)
 		if len(fields) == 0 {
 			return fmt.Errorf("PKT_PROTO message: no protocol level (required)")
 		}
@@ -591,14 +591,14 @@ func icbHandleType(icb_conn net.Conn, msg icbPacket, irc_conn net.Conn) error {
 
 	// Beep
 	case icbPacketType["PKT_BEEP"]:
-		fields := getIcbPacketFields(msg.Data)
+		fields := getIcbPacketFields(packet.Data)
 		nick := fields[0]
 		logger.LogTracef("ICB - Received Beep packet - nick = %s", nick)
 		irc.IrcSendNotice(irc_conn, "*** :ICB Beep from %s", nick)
 	// Ping from server
 	case icbPacketType["PKT_PING"]:
 		logger.LogDebug("ICB - Received PING packet")
-		fields := getIcbPacketFields(msg.Data)
+		fields := getIcbPacketFields(packet.Data)
 		if len(fields) > 1 {
 			logger.LogWarnf("ICB - Invalid PING fields: %d received (max = 1) - fields = %q", len(fields), fields)
 		}
@@ -608,7 +608,7 @@ func icbHandleType(icb_conn net.Conn, msg icbPacket, irc_conn net.Conn) error {
 	// Pong from server
 	case icbPacketType["PKT_PONG"]:
 		logger.LogDebug("ICB - Received PONG packet")
-		fields := getIcbPacketFields(msg.Data)
+		fields := getIcbPacketFields(packet.Data)
 		if len(fields) > 1 {
 			logger.LogWarnf("ICB - Invalid PONG fields: %d received (max = 1) - fields = %q", len(fields), fields)
 		}
@@ -616,7 +616,7 @@ func icbHandleType(icb_conn net.Conn, msg icbPacket, irc_conn net.Conn) error {
 			irc.IrcSendNotice(irc_conn, "*** :ICB Pong - fields = %q", fields)
 		}
 	default:
-		logger.LogWarnf("ICB - Unknown command type '%s'", string(msg.Type))
+		logger.LogWarnf("ICB - Unknown command type '%s'", string(packet.Type))
 	}
 
 	return nil
