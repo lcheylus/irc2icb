@@ -9,6 +9,7 @@ import (
 	"io"
 	"net"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -73,6 +74,8 @@ var (
 	IcbMode     int  = IcbModeNone // ICB mode to reply to IRC commands
 
 	icbProtocolInfo icbProtocolInfos // Infos for ICB server
+
+	IcbChFirstJoin chan struct{} // Signal to join first ICB group
 )
 
 // icbPacket represents a parsed ICB packet
@@ -112,6 +115,7 @@ func GetIcbPackets(icb_conn net.Conn, irc_conn net.Conn, ctx context.Context) {
 			logger.LogInfof("ICB - Close connection to server %s", icb_conn.RemoteAddr().String())
 			goto End
 		default:
+			logger.LogTracef("ICB - [GetIcbPackets] packet received from ICB server")
 			packet, err := parseIcbPacket(reader)
 			if err != nil {
 				if err == io.EOF {
@@ -248,6 +252,8 @@ func parseIcbGenericCommandOutput(data string, irc_conn net.Conn) {
 		} else if IcbMode == IcbModeNames {
 			// Send signal for completion of ICB command to get groups with users
 			chUsersReceived <- struct{}{}
+		} else {
+			logger.LogError("ICB - Output 'Total' received but not in mode for LIST or NAMES")
 		}
 		IcbMode = IcbModeNone
 
@@ -350,12 +356,16 @@ func parseIcbStatus(category string, content string, icb_conn net.Conn, irc_conn
 			irc.IrcSendNotice(irc_conn, "*** :ICB Status Message: %s", content)
 		} else {
 			group := content[len(ICB_JOIN):]
+
+			// First login => send signal to get ICB groups/users and send IRC replies
+			if IcbGroupCurrent == "" {
+				logger.LogInfof("ICB - No current group - Join group '%s'", group)
+				IcbChFirstJoin <- struct{}{}
+				IcbGroupCurrent = group
+			}
+
 			logger.LogInfof("ICB - Current group = '%s'", group)
 			irc.IrcSendNotice(irc_conn, "*** :ICB Status Message: %s", content)
-
-			// TODO First login => get groups/users and send IRC JOIN messages
-			if IcbGroupCurrent == "" {
-			}
 		}
 		return nil
 	case "Arrive", "Sign-on":
@@ -620,6 +630,72 @@ func icbHandleType(icb_conn net.Conn, packet icbPacket, irc_conn net.Conn) error
 	}
 
 	return nil
+}
+
+// Wait ICB Login OK to send IRC replies to join group
+func IcbJoinAfterLogin(icb_conn net.Conn, irc_conn net.Conn) {
+	for {
+		select {
+		case <-IcbChFirstJoin:
+			logger.LogInfof("ICB - Received signal to join ICB group")
+			IcbResetGroups()
+			IcbResetUsers()
+			IcbQueryWho(icb_conn)
+
+			logger.LogInfof("IRC - Send replies to JOIN group '%s'", IcbGroupCurrent)
+			IcbSendIrcJoinReply(irc_conn, IcbGroupCurrent)
+
+			close(IcbChFirstJoin)
+			return
+		default:
+		}
+	}
+}
+
+// Send IRC JOIN replies after joining an ICB group
+func IcbSendIrcJoinReply(irc_conn net.Conn, group string) {
+	icb_group := IcbGetGroup(group)
+	logger.LogDebugf("IRC - Send replies to JOIN group '%s' - users = %q", group, icb_group.Users)
+
+	icb_user := IcbGetUser(irc.IrcNick)
+
+	irc.IrcSendJoin(irc_conn, irc.IrcNick, icb_user.Username, icb_user.Hostname, utils.GroupToChannel(group))
+
+	if icb_group.Topic != ICB_TOPICNONE {
+		irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_TOPIC"], "%s :%s", utils.GroupToChannel(group), icb_group.Topic)
+	} else {
+		irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_NOTOPIC"], "%s :No topic is set", utils.GroupToChannel(group))
+	}
+
+	// A list of users currently joined to the channel (with one or more RPL_NAMREPLY (353) numerics
+	// followed by a single RPL_ENDOFNAMES (366) numeric).
+	// These RPL_NAMREPLY messages sent by the server MUST include the requesting client that has just joined the channel.
+	// Format for RPL_NAMREPLY message: "<client> <symbol> <channel> :[prefix]<nick>{ [prefix]<nick>}"
+	users := icb_group.Users
+	if !icb_group.IcbUserInGroup(irc.IrcNick) {
+		users = append(users, irc.IrcNick)
+	}
+
+	var icb_tmp_user *IcbUser
+	var users_with_prefix []string
+
+	// Send RPL_WHOREPLY codes for each user in group
+	for _, user := range users {
+		icb_tmp_user = IcbGetUser(user)
+		users_with_prefix = append(users_with_prefix, irc.IrcGetNickWithPrefix(user, icb_tmp_user.Moderator))
+
+		// RPL_WHOREPLY message format = "<client> <channel> <username> <host> <server> <nick> <flags> :<hopcount> <realname>"
+		irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_WHOREPLY"], "%s %s %s %s %s H :5 %s", utils.GroupToChannel(group), icb_tmp_user.Nick, icb_tmp_user.Hostname, "Server_ICB", icb_tmp_user.Nick, icb_tmp_user.Username)
+	}
+	// Sort list of users by moderator status
+	sort.SliceStable(users_with_prefix, func(i, j int) bool {
+		return utils.CompareUser(users_with_prefix[i], users_with_prefix[j])
+	})
+
+	irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_NAMREPLY"], "= %s :%s", utils.GroupToChannel(group), strings.Join(users_with_prefix, " "))
+
+	irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_ENDOFNAMES"], "%s :End of /NAMES list", utils.GroupToChannel(group))
+	irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_ENDOFWHO"], "%s :End of /WHO list", utils.GroupToChannel(group))
 }
 
 // Add packet's length as prefix (necessary for ICB packet with format 'Ltd')
