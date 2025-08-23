@@ -14,7 +14,6 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
-	"unicode"
 
 	logger "irc2icb/utils"
 	optparse "irc2icb/utils"
@@ -183,16 +182,6 @@ func handleSignals() {
 
 	logger.LogInfof("Process exited - PID = %d", os.Getpid())
 	os.Exit(0)
-}
-
-// Check if a string contains only alphanumeric chars
-func isAlphanumeric(s string) bool {
-	for _, c := range s {
-		if !unicode.IsLetter(c) && !unicode.IsDigit(c) {
-			return false
-		}
-	}
-	return true
 }
 
 // Keep this function in main, instead of irc package
