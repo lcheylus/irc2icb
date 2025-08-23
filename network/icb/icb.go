@@ -664,8 +664,6 @@ func IcbJoinAfterLogin(icb_conn net.Conn, irc_conn net.Conn) {
 		select {
 		case <-IcbChFirstJoin:
 			logger.LogInfo("ICB - Received signal to join ICB group after login => query groups/users")
-			IcbResetGroups()
-			IcbResetUsers()
 			IcbQueryWho(icb_conn)
 
 			logger.LogInfof("IRC - Send replies to JOIN group '%s'", IcbGroupCurrent)

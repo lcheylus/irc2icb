@@ -45,7 +45,7 @@ type IcbGroup struct {
 
 // Reset global list of ICB groups
 // Remove all ICBGroup in list for GC
-func IcbResetGroups() {
+func icbResetGroups() {
 	for i := range IcbGroups {
 		IcbGroups[i] = nil
 	}
@@ -54,7 +54,7 @@ func IcbResetGroups() {
 
 // Reset global list of ICB users
 // Remove all ICBUser in list for GC
-func IcbResetUsers() {
+func icbResetUsers() {
 	for i := range IcbUsers {
 		IcbUsers[i] = nil
 	}
@@ -70,6 +70,9 @@ func IcbQueryWho(icb_conn net.Conn) {
 	// TODO Add timer not to request groups/users too frequently
 	// Example: JOIN group => after IRC reply to JOIN, IRC client sent a WHO
 	// command => new request for groups/users, useless if request done not long ago.
+
+	icbResetGroups()
+	icbResetUsers()
 
 	// Send ICB command to list groups
 	chGroupsReceived = make(chan struct{})
