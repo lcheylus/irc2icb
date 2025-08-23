@@ -82,6 +82,16 @@ var (
 	IcbChGroupRestricted chan struct{} // Signal when joined group is restricted
 )
 
+// Return HostId from Protocol infos for ICB server
+func GetIcbHostId() string {
+	return icbProtocolInfo.HostId
+}
+
+// Return ServerId from Protocol infos for ICB server
+func GetIcbServerId() string {
+	return icbProtocolInfo.ServerId
+}
+
 // icbPacket represents a parsed ICB packet
 type icbPacket struct {
 	Type byte
@@ -709,7 +719,9 @@ func IcbSendIrcJoinReply(irc_conn net.Conn, group string) {
 		users_with_prefix = append(users_with_prefix, irc.IrcGetNickWithPrefix(user, icb_tmp_user.Moderator))
 
 		// RPL_WHOREPLY message format = "<client> <channel> <username> <host> <server> <nick> <flags> :<hopcount> <realname>"
-		irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_WHOREPLY"], "%s %s %s %s %s H :5 %s", utils.GroupToChannel(group), icb_tmp_user.Nick, icb_tmp_user.Hostname, "Server_ICB", icb_tmp_user.Nick, icb_tmp_user.Username)
+		irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_WHOREPLY"], "%s %s %s %s %s H :5 %s",
+			utils.GroupToChannel(group), icb_tmp_user.Username, icb_tmp_user.Hostname, GetIcbHostId(),
+			icb_tmp_user.Nick, icb_tmp_user.Username)
 	}
 	// Sort list of users by moderator status
 	sort.SliceStable(users_with_prefix, func(i, j int) bool {

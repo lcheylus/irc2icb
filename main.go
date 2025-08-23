@@ -495,7 +495,9 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 				for _, user := range icb_group.Users {
 					icb_tmp_user = icb.IcbGetUser(user)
 					// RPL_WHOREPLY message format = "<client> <channel> <username> <host> <server> <nick> <flags> :<hopcount> <realname>"
-					irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_WHOREPLY"], "%s %s %s %s %s H :5 %s", utils.GroupToChannel(group), icb_tmp_user.Nick, icb_tmp_user.Hostname, "Server_ICB", icb_tmp_user.Nick, icb_tmp_user.Username)
+					irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_WHOREPLY"], "%s %s %s %s %s H :5 %s",
+						utils.GroupToChannel(group), icb_tmp_user.Username, icb_tmp_user.Hostname, icb.GetIcbHostId(),
+						icb_tmp_user.Nick, icb_tmp_user.Username)
 				}
 				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_ENDOFWHO"], "%s :End of /WHO list", utils.GroupToChannel(group))
 				break
@@ -518,10 +520,12 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			}
 
 			// Send replies for WHOIS nick
-			irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_WHOISUSER"], "%s %s %s * :no realname for ICB", nick, icb_user.Username, icb_user.Hostname)
-			// TODO Use ICB infos from Protocol packet
-			irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_WHOISSERVER"], "%s :%s", "Server_ICB", "ICB server")
-			irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_WHOISIDLE"], "%s %d %d :seconds idle, signon time", nick, icb_user.Idle, icb_user.LoginTime.Unix())
+			irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_WHOISUSER"], "%s %s %s * :no realname for ICB",
+				nick, icb_user.Username, icb_user.Hostname)
+			irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_WHOISSERVER"], "%s :%s",
+				icb.GetIcbHostId(), icb.GetIcbServerId())
+			irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_WHOISIDLE"], "%s %d %d :seconds idle, signon time",
+				nick, icb_user.Idle, icb_user.LoginTime.Unix())
 
 			// Get current ICB group for nick
 			var current_group string = ""
