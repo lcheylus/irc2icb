@@ -888,9 +888,7 @@ func IcbSendBoot(conn net.Conn, user string) error {
 func IcbSendNick(conn net.Conn, nick string) error {
 	const nick_cmd = "name"
 
-	packet := []byte(fmt.Sprintf("%c%s\001", icbPacketType["PKT_COMMAND"], nick_cmd))
-	// Send nick as slice of bytes to encode special chars
-	packet = append(packet, []byte(nick)...)
+	packet := []byte(fmt.Sprintf("%c%s\001%s", icbPacketType["PKT_COMMAND"], nick_cmd, nick))
 	packet = preprendPacketLength(packet)
 
 	// TODO Check packet size < max packet length (255)
