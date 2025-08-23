@@ -54,7 +54,9 @@ const (
 	ICB_NOTOPIC   string = "The topic is not set." // ICB Command generic output when group's topic not set
 	ICB_TOPICNONE string = "(None)"                // ICB topic when undefined
 
-	ICB_NOTMODERATOR string = "You aren't the moderator" // ICB Error when user isn't moderator for the current group
+	ICB_NOTMODERATOR  string = "You aren't the moderator"      // ICB Error when user isn't moderator for the current group
+	ICB_GROUPRESTRICT string = "is restricted."                // ICB Error when group is restricted '<group> is restricted.'
+	ICB_SAMEGROUP     string = "You are already in that group" // ICB Error when joining same group
 
 	MAX_PKT_LENGTH   int = 256                                 // Max length for ICB packet (including first by for length)
 	MAX_NICKLEN      int = 12                                  // Max length for ICB nick
@@ -75,7 +77,8 @@ var (
 
 	icbProtocolInfo icbProtocolInfos // Infos for ICB server
 
-	IcbChFirstJoin chan struct{} // Signal to join first ICB group
+	IcbChFirstJoin       chan struct{} // Signal to join first ICB group
+	IcbChGroupRestricted chan struct{} // Signal when joined group is restricted
 )
 
 // icbPacket represents a parsed ICB packet
@@ -498,6 +501,7 @@ func icbHandleType(icb_conn net.Conn, packet icbPacket, irc_conn net.Conn) error
 
 		logger.LogInfof("ICB - Logged to server for nick %s in group '%s'", irc.IrcNick, irc.IrcPassword)
 		IcbLoggedIn = true
+		IcbChGroupRestricted = make(chan struct{})
 
 	// Open Message
 	case icbPacketType["PKT_OPEN"]:
@@ -538,7 +542,10 @@ func icbHandleType(icb_conn net.Conn, packet icbPacket, irc_conn net.Conn) error
 
 		if strings.HasPrefix(fields[0], ICB_NOTMODERATOR) {
 			irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["ERR_CHANOPRIVSNEEDED"], "%s :You're not channel operator", IcbGroupCurrent)
-		} else {
+		} else if strings.HasSuffix(fields[0], ICB_GROUPRESTRICT) {
+			logger.LogDebug("ICB - Group restricted => send signal")
+			IcbChGroupRestricted <- struct{}{}
+		} else if !strings.HasPrefix(fields[0], ICB_SAMEGROUP) {
 			irc.IrcSendRaw(irc_conn, "ERROR :"+fmt.Sprintf("ICB Error Message: %s", fields[0]))
 		}
 

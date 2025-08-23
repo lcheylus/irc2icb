@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
 	logger "irc2icb/utils"
 	optparse "irc2icb/utils"
@@ -354,11 +355,24 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 
 				// Case when it's not the first login
 				if icb.IcbGroupCurrent != "" {
+					previous_group := icb.IcbGroupCurrent
 					icb.IcbJoinGroup(icb_conn, group)
-					// TODO Handle case if group restricted - Error Message '<group> is restricted.'
+
+					// Wait Error packet if group is restricted, with timeout
+					select {
+					case <-icb.IcbChGroupRestricted:
+						logger.LogWarnf("ICB - Unable to join group '%s' => restricted", group)
+						irc.IrcSendRaw(irc_conn, "ERROR :Access to ICB group %s is restricted", group)
+						icb.IcbJoinGroup(icb_conn, previous_group)
+						group = previous_group
+						irc.IrcSendNotice(irc_conn, "*** :Rejoin previous ICB group %s", group)
+					case <-time.After(1 * time.Second):
+						logger.LogDebugf("ICB - No restriction to join group '%s'", group)
+					}
+
+					icb.IcbGroupCurrent = group
+					icb.IcbSendIrcJoinReply(irc_conn, group)
 				}
-				icb.IcbGroupCurrent = group
-				icb.IcbSendIrcJoinReply(irc_conn, group)
 			}
 
 		case irc.IrcCommandList:
