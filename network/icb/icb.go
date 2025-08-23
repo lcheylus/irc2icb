@@ -546,7 +546,7 @@ func icbHandleType(icb_conn net.Conn, packet icbPacket, irc_conn net.Conn) error
 			logger.LogDebug("ICB - Group restricted => send signal")
 			IcbChGroupRestricted <- struct{}{}
 		} else if !strings.HasPrefix(fields[0], ICB_SAMEGROUP) {
-			irc.IrcSendRaw(irc_conn, "ERROR :"+fmt.Sprintf("ICB Error Message: %s", fields[0]))
+			irc.IrcSendRaw(irc_conn, "ERROR :ICB Error Message: %s", fields[0])
 		}
 
 		// TODO Handle case if ICB connection not closed/reset
