@@ -269,6 +269,11 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 				ip := strings.Split(icb_conn.RemoteAddr().String(), ":")[0]
 				logger.LogInfof("ICB - Connected to server %s (%s) port %d", server_addr, ip, server_port)
 
+				// Start routine to check if initial group is restricted or not
+				logger.LogInfo("ICB - Start routine to check access for initial group after login")
+				icb.IcbChGroupRestricted = make(chan struct{})
+				go icb.IcbWaitGroupRestricted(icb_conn, irc_conn, irc.IrcPassword)
+
 				// Start routine to join group after first login
 				logger.LogInfo("ICB - Start routine to join group after login")
 				icb.IcbChFirstJoin = make(chan struct{})

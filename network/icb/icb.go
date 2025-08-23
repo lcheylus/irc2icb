@@ -502,10 +502,6 @@ func icbHandleType(icb_conn net.Conn, packet icbPacket, irc_conn net.Conn) error
 		irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_MOTD"], ":- ICB server: %s", icbProtocolInfo.ServerId)
 		irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_ENDOFMOTD"], ":End of MOTD command")
 
-		logger.LogInfof("ICB - Logged to server for nick %s in group '%s'", irc.IrcNick, irc.IrcPassword)
-		IcbLoggedIn = true
-		IcbChGroupRestricted = make(chan struct{})
-
 	// Open Message
 	case icbPacketType["PKT_OPEN"]:
 		logger.LogDebug("ICB - Received Open Message")
@@ -642,12 +638,32 @@ func icbHandleType(icb_conn net.Conn, packet icbPacket, irc_conn net.Conn) error
 	return nil
 }
 
+// After ICB Login OK, wait message to check is initial group is restricted
+func IcbWaitGroupRestricted(icb_conn net.Conn, irc_conn net.Conn, group string) {
+	for {
+		select {
+		case <-IcbChGroupRestricted:
+			logger.LogWarnf("ICB - Unable to join group '%s' => restricted", group)
+			irc.IrcSendRaw(irc_conn, "ERROR :Access to ICB group %s is restricted", group)
+			IcbConnected = false
+			return
+
+		default:
+			if IcbLoggedIn {
+				logger.LogDebugf("ICB - No restriction to join group '%s'", group)
+				logger.LogInfof("ICB - Logged to server for nick %s in group '%s'", irc.IrcNick, group)
+				return
+			}
+		}
+	}
+}
+
 // Wait ICB Login OK to send IRC replies to join group
 func IcbJoinAfterLogin(icb_conn net.Conn, irc_conn net.Conn) {
 	for {
 		select {
 		case <-IcbChFirstJoin:
-			logger.LogInfof("ICB - Received signal to join ICB group")
+			logger.LogInfo("ICB - Received signal to join ICB group after login => query groups/users")
 			IcbResetGroups()
 			IcbResetUsers()
 			IcbQueryWho(icb_conn)
