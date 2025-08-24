@@ -380,16 +380,67 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			}
 
 		case irc.IrcCommandList:
+			// Filter channels/groups with IRC command "LIST" paramaters
+			valid_channels, invalid_channels, err := irc.IrcFilterList(params)
+			if err != nil {
+				irc.IrcSendRaw(irc_conn, "ERROR :%s", err.Error())
+				break
+			}
+
 			logger.LogInfo("IRC - LIST command => send ICB command to list groups and users")
 			icb.IcbQueryGroupsUsers(icb_conn, true)
 
-			// TODO Filter groups with IRC command "LIST" paramaters
-			for _, group := range icb.IcbGroups {
+			var valid_groups []*icb.IcbGroup
+			var invalid_groups []string
+
+			// LIST command for all channels
+			if len(valid_channels) == 0 {
+				for _, group := range icb.IcbGroups {
+					valid_groups = append(valid_groups, group)
+				}
+				invalid_groups = []string{}
+				goto SendListReplies
+			}
+
+			// LIST request ">N" => return groups with more than N users
+			if len(valid_channels) == 1 && strings.HasPrefix(valid_channels[0], ">") {
+				n_users, _ := strconv.Atoi(valid_channels[0][1:])
+				for _, group := range icb.IcbGroups {
+					if len(group.Users) >= n_users {
+						valid_groups = append(valid_groups, group)
+					}
+				}
+				invalid_groups = []string{}
+				goto SendListReplies
+			}
+
+			for _, irc_channel := range valid_channels {
+				group := icb.IcbGetGroup(utils.GroupFromChannel(irc_channel))
+				if group != nil {
+					valid_groups = append(valid_groups, group)
+				} else {
+					invalid_groups = append(invalid_groups, utils.GroupFromChannel(irc_channel))
+				}
+			}
+			irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_LISTEND"], ":End of /LIST")
+
+		SendListReplies:
+			logger.LogDebugf("IRC - Send reply to LIST command - nick = %s", irc.IrcNick)
+
+			// Send IRC numeric reply RPL_LIST for each valid group
+			for _, group := range valid_groups {
 				logger.LogDebugf("ICB - [Group] Name = %s - Topic = '%s' - %d users %q", group.Name, group.Topic, len(group.Users), group.Users)
 				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_LIST"], "%s %d :%s", utils.GroupToChannel(group.Name), len(group.Users), group.Topic)
 			}
 			irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_LISTEND"], ":End of /LIST")
-			logger.LogDebugf("IRC - Send reply to LIST command - nick = %s", irc.IrcNick)
+
+			// Send IRC notice for each invalid group
+			for _, irc_channel := range invalid_channels {
+				invalid_groups = append(invalid_groups, irc_channel)
+			}
+			for _, group := range invalid_groups {
+				irc.IrcSendNotice(irc_conn, "*** :Invalid ICB group '%s' in LIST command", group)
+			}
 
 		case irc.IrcCommandNames:
 			logger.LogInfof("IRC - NAMES command => paramaters = %s", params[0])

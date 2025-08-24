@@ -7,6 +7,7 @@ package irc
 import (
 	"fmt"
 	"net"
+	"strconv"
 	"strings"
 
 	logger "irc2icb/utils"
@@ -154,7 +155,11 @@ func IrcCommand(conn net.Conn, data string) (int, []string) {
 		return IrcCommandNop, nil
 	case "LIST":
 		logger.LogTracef("IRC - Received LIST command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
-		return IrcCommandList, nil
+		if len(msg.Params) == 0 {
+			return IrcCommandList, []string{}
+		} else {
+			return IrcCommandList, []string{msg.Params[0]}
+		}
 	case "NAMES":
 		logger.LogTracef("IRC - Received NAMES command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
 		return IrcCommandNames, []string{msg.Params[0]}
@@ -196,6 +201,54 @@ func IrcCommand(conn net.Conn, data string) (int, []string) {
 	// PRIVMSG
 
 	return IrcCommandUnknown, []string{msg.Command}
+}
+
+// Filter parameters for IRC LIST command
+// Format: LIST [<channel>{,<channel>}]
+// Supported: (other query unsupported)
+//   - LIST => list all channels
+//   - LIST #twilight_zone,#42 => list channels #twilight_zone and #42
+//   - LIST >3 => list all channels with more than 3 users
+//
+// Returns :
+// - slice of string for valid channels or query
+// - slice of string for invalid channels
+// - error for invalid query
+func IrcFilterList(params []string) ([]string, []string, error) {
+	// Command = LIST
+	if len(params) == 0 {
+		logger.LogDebug("IRC - [IrcFilterList] LIST command with no parameter")
+		return []string{}, []string{}, nil
+	}
+
+	// Command = LIST >number
+	if strings.HasPrefix(params[0], ">") {
+		_, err := strconv.Atoi(params[0][1:])
+		if err != nil {
+			logger.LogErrorf("IRC - [IrcFilterList] invalid format (not number) in query '%s' for LIST command", params[0])
+			return []string{}, []string{}, fmt.Errorf("Invalid format (not number) in query '%s' for LIST command", params[0])
+		} else {
+			return params, []string{}, nil
+		}
+	}
+	irc_channels := strings.Split(params[0], ",")
+	if len(irc_channels) == 1 && strings.ContainsAny(irc_channels[0], "<>") {
+		logger.LogErrorf("IRC - [IrcFilterList] invalid query '%s' for LIST command", params[0])
+		return []string{}, []string{}, fmt.Errorf("Invalid query '%s' for LIST command", params[0])
+	}
+
+	// Search valid channels for case "LIST [<channel>{,<channel>}]"
+	var valid_channels []string
+	var invalid_channels []string
+	for _, irc_channel := range irc_channels {
+		if utils.IsValidIrcChannel(irc_channel) {
+			valid_channels = append(valid_channels, irc_channel)
+		} else {
+			invalid_channels = append(invalid_channels, irc_channel)
+		}
+	}
+	logger.LogDebugf("IRC - [IrcFilterList] valid_channels = %q - invalid_channels = %q", valid_channels, invalid_channels)
+	return valid_channels, invalid_channels, nil
 }
 
 // Send message to IRC connection
