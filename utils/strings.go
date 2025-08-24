@@ -36,6 +36,11 @@ func CompareUser(user1, user2 string) bool {
 	return false
 }
 
+// Trim hostname for user for IP, format = [<ip>]
+func TrimHostname(hostname string) string {
+	return strings.Trim(hostname, "[]")
+}
+
 // SplitString splits the input string into multiple substrings of size max_size
 // while ensuring the split happens at a space boundary.
 func SplitString(input string, max_size int) []string {

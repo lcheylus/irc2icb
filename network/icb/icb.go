@@ -720,7 +720,7 @@ func IcbSendIrcJoinReply(irc_conn net.Conn, group string) {
 
 		// RPL_WHOREPLY message format = "<client> <channel> <username> <host> <server> <nick> <flags> :<hopcount> <realname>"
 		irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_WHOREPLY"], "%s %s %s %s %s H :5 %s",
-			utils.GroupToChannel(group), icb_tmp_user.Username, icb_tmp_user.Hostname, GetIcbHostId(),
+			utils.GroupToChannel(group), icb_tmp_user.Username, utils.TrimHostname(icb_tmp_user.Hostname), GetIcbHostId(),
 			icb_tmp_user.Nick, icb_tmp_user.Username)
 	}
 	// Sort list of users by moderator status

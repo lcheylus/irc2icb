@@ -67,6 +67,27 @@ func TestCompareUser(t *testing.T) {
 	}
 }
 
+func TestTrimHostname(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"localhost", "localhost"},
+		{"google.com", "google.com"},
+		{"[1.1.1.1]", "1.1.1.1"},
+		{"[8.8.8.8]", "8.8.8.8"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.input, func(t *testing.T) {
+			result := TrimHostname(test.input)
+
+			if result != test.expected {
+				t.Errorf("For input '%s', expected %v, but got %v", test.input, test.expected, result)
+			}
+		})
+	}
+}
 func TestSplitString(t *testing.T) {
 	lore_ipsum := "Lorem ipsum dolor sit amet, consectetur adipiscing elit. " +
 		"Mauris scelerisque ac ligula in eleifend. Praesent nisi libero, posuere vel mollis sed, " +
