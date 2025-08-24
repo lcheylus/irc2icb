@@ -12,6 +12,10 @@ import (
 	logger "irc2icb/utils"
 )
 
+const (
+	MAX_AGE_INFOS int = 5 // Duration in minutes before refresh of groups/users from ICB server
+)
+
 var (
 	// TODO Use map instead with key = group's name
 	IcbGroups       []*IcbGroup // List of ICB groups
@@ -22,6 +26,7 @@ var (
 	icbGroupReceivedCurrent string        // Name of current group parsed from ICB Generic Command Output
 	chGroupsReceived        chan struct{} // Channel to signal reception of groups list
 	chUsersReceived         chan struct{} // Channel to signal reception of groups list with users
+	icbInfosLastRefresh     time.Time     // Last date for refresh of ICB groups/users from server
 )
 
 // IcbUser represents a ICB User (datas parsed for Command packet, type='wl')
@@ -61,15 +66,34 @@ func icbResetUsers() {
 	IcbUsers = IcbUsers[:0]
 }
 
-// Get ICB groups and users via ICB Command
+// Get ICB lists of groups and users
+// If lists are empty, query infos from ICB server. If not, infos are sent from
+// a cache managed with a duration before refresh.
+// Refresh infos from ICB server can be forced via 'force' parameter.
+//
 // Inputs:
 // - icb_conn (net.Conn): connection to ICB server
+// - force (bool): force to refresh groups/users list from ICB server
 // Append group in IcbGroups list and user in IcbUsers list
-func IcbQueryWho(icb_conn net.Conn) {
+func IcbQueryWho(icb_conn net.Conn, force bool) {
+	if icbInfosLastRefresh.IsZero() {
+		icbInfosLastRefresh = time.Now()
+	}
 
-	// TODO Add timer not to request groups/users too frequently
-	// Example: JOIN group => after IRC reply to JOIN, IRC client sent a WHO
-	// command => new request for groups/users, useless if request done not long ago.
+	duration := time.Now().Sub(icbInfosLastRefresh)
+	minutes := int(duration / time.Minute)
+	seconds := int((duration % time.Minute) / time.Second)
+
+	if !force && (len(IcbGroups) != 0) && (duration <= time.Duration(MAX_AGE_INFOS)*time.Minute) {
+		logger.LogDebugf("ICB - [IcbQueryWho] Get infos for groups/users - last refresh = %d minutes, %d seconds (<= %d minutes) => no query to ICB server", minutes, seconds, MAX_AGE_INFOS)
+		return
+	}
+
+	if force || len(IcbGroups) == 0 {
+		logger.LogDebugf("ICB - [IcbQueryWho] Get infos for groups/users => query from ICB server")
+	} else {
+		logger.LogDebugf("ICB - [IcbQueryWho] Get infos for groups/users - last refresh = %d minutes, %d seconds (> %d minutes) => query to ICB server", minutes, seconds, MAX_AGE_INFOS)
+	}
 
 	icbResetGroups()
 	icbResetUsers()
@@ -101,6 +125,8 @@ func IcbQueryWho(icb_conn net.Conn) {
 	}
 	logger.LogInfof("ICB - %d groups - %q", len(groups), groups)
 	logger.LogInfof("ICB - %d users - %q", len(users), users)
+
+	icbInfosLastRefresh = time.Now()
 }
 
 // Add group in global list of groups
@@ -260,6 +286,7 @@ func icbParseUser(fields []string) (*IcbUser, error) {
 	user.Idle, err = strconv.Atoi(fields[2])
 	if err != nil {
 		logger.LogErrorf("ICB - invalid idle time for user %s - value = %s", user.Nick, fields[2])
+		user.Idle = 0
 	}
 	// Unix time format
 	user.LoginTime, err = stringToTime(fields[4])
