@@ -338,7 +338,7 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 					logger.LogWarnf("IRC - JOIN command => unable to find current group '%s' in ICB groups list", group)
 					logger.LogInfo("IRC - JOIN command => send ICB command to list groups and users")
 
-					icb.IcbQueryWho(icb_conn, true)
+					icb.IcbQueryGroupsUsers(icb_conn, true)
 
 					icb_group = icb.IcbGetGroup(group)
 					// Error for unknown group
@@ -381,7 +381,7 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 
 		case irc.IrcCommandList:
 			logger.LogInfo("IRC - LIST command => send ICB command to list groups and users")
-			icb.IcbQueryWho(icb_conn, true)
+			icb.IcbQueryGroupsUsers(icb_conn, true)
 
 			// TODO Filter groups with IRC command "LIST" paramaters
 			for _, group := range icb.IcbGroups {
@@ -395,7 +395,7 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			logger.LogInfof("IRC - NAMES command => paramaters = %s", params[0])
 			channels := strings.Split(params[0], ",")
 
-			icb.IcbQueryWho(icb_conn, false)
+			icb.IcbQueryGroupsUsers(icb_conn, false)
 
 			var group *icb.IcbGroup
 
@@ -479,7 +479,7 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			if utils.IsValidIrcChannel(params[0]) {
 				logger.LogDebug("ICB - WHO command => query groups and users")
 
-				icb.IcbQueryWho(icb_conn, false)
+				icb.IcbQueryGroupsUsers(icb_conn, false)
 
 				// Check if group exists in ICB groups
 				group := utils.GroupFromChannel(params[0])
@@ -510,7 +510,7 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			// The server SHOULD answer this command with numeric messages with information about the nick.
 			logger.LogInfof("IRC - WHOIS command => params = %q", params)
 
-			icb.IcbQueryWho(icb_conn, false)
+			icb.IcbQueryGroupsUsers(icb_conn, false)
 
 			nick := params[0]
 			icb_user := icb.IcbGetUser(nick)

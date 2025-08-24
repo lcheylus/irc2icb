@@ -75,7 +75,7 @@ func icbResetUsers() {
 // - icb_conn (net.Conn): connection to ICB server
 // - force (bool): force to refresh groups/users list from ICB server
 // Append group in IcbGroups list and user in IcbUsers list
-func IcbQueryWho(icb_conn net.Conn, force bool) {
+func IcbQueryGroupsUsers(icb_conn net.Conn, force bool) {
 	if icbInfosLastRefresh.IsZero() {
 		icbInfosLastRefresh = time.Now()
 	}
