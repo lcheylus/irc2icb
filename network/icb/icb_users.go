@@ -85,14 +85,14 @@ func IcbQueryGroupsUsers(icb_conn net.Conn, force bool) {
 	seconds := int((duration % time.Minute) / time.Second)
 
 	if !force && (len(IcbGroups) != 0) && (duration <= time.Duration(MAX_AGE_INFOS)*time.Minute) {
-		logger.LogDebugf("ICB - [IcbQueryWho] Get infos for groups/users - last refresh = %d minutes, %d seconds (<= %d minutes) => no query to ICB server", minutes, seconds, MAX_AGE_INFOS)
+		logger.LogDebugf("ICB - [IcbQueryGroupsUsers] Get infos for groups/users - last refresh = %d minutes, %d seconds (<= %d minutes) => no query to ICB server", minutes, seconds, MAX_AGE_INFOS)
 		return
 	}
 
 	if force || len(IcbGroups) == 0 {
-		logger.LogDebugf("ICB - [IcbQueryWho] Get infos for groups/users => query from ICB server")
+		logger.LogDebugf("ICB - [IcbQueryGroupsUsers] Get infos for groups/users => query from ICB server")
 	} else {
-		logger.LogDebugf("ICB - [IcbQueryWho] Get infos for groups/users - last refresh = %d minutes, %d seconds (> %d minutes) => query to ICB server", minutes, seconds, MAX_AGE_INFOS)
+		logger.LogDebugf("ICB - [IcbQueryGroupsUsers] Get infos for groups/users - last refresh = %d minutes, %d seconds (> %d minutes) => query to ICB server", minutes, seconds, MAX_AGE_INFOS)
 	}
 
 	icbResetGroups()
