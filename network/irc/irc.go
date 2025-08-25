@@ -207,6 +207,7 @@ func IrcCommand(conn net.Conn, data string) (int, []string) {
 // Format: LIST [<channel>{,<channel>}]
 // Supported: (other query unsupported)
 //   - LIST => list all channels
+//   - LIST #chan* => list channels beginning by '#chan'
 //   - LIST #twilight_zone,#42 => list channels #twilight_zone and #42
 //   - LIST >3 => list all channels with more than 3 users
 //
@@ -214,27 +215,40 @@ func IrcCommand(conn net.Conn, data string) (int, []string) {
 // - slice of string for valid channels or query
 // - slice of string for invalid channels
 // - error for invalid query
-func IrcFilterList(params []string) ([]string, []string, error) {
+func IrcFilterList(query string) ([]string, []string, error) {
 	// Command = LIST
-	if len(params) == 0 {
+	if query == "" {
 		logger.LogDebug("[IrcFilterList] LIST command with no parameter")
 		return []string{}, []string{}, nil
 	}
 
 	// Command = LIST >number
-	if strings.HasPrefix(params[0], ">") {
-		_, err := strconv.Atoi(params[0][1:])
+	if strings.HasPrefix(query, ">") {
+		_, err := strconv.Atoi(query[1:])
 		if err != nil {
-			logger.LogErrorf("[IrcFilterList] invalid format (not number) in query '%s' for LIST command", params[0])
-			return []string{}, []string{}, fmt.Errorf("Invalid format (not number) in query '%s' for LIST command", params[0])
+			logger.LogErrorf("[IrcFilterList] invalid format (not number) in query '%s' for LIST command", query)
+			return []string{}, []string{}, fmt.Errorf("Invalid format (not number) in query '%s' for LIST command", query)
 		} else {
-			return params, []string{}, nil
+			return []string{query}, []string{}, nil
 		}
 	}
-	irc_channels := strings.Split(params[0], ",")
+
+	irc_channels := strings.Split(query, ",")
+
+	// Case with pattern '#chan*' + multiple inputs => unsupported
+	// Case with pattern '*chan*' => unsupported
+	// Case with pattern '#cha*n' => unsupported
+	if (len(irc_channels) > 1 && strings.ContainsAny(query, "*")) ||
+		(len(irc_channels) == 1 && strings.Count(query, "*") > 1) ||
+		(len(irc_channels) == 1 && strings.Count(query, "*") == 1 && !strings.HasSuffix(query, "*")) {
+		logger.LogErrorf("[IrcFilterList] unsupported query '%s' for LIST command", query)
+		return []string{}, []string{}, fmt.Errorf("Unsupported query '%s' for LIST command", query)
+	}
+
+	// Unsupported query with comparator
 	if len(irc_channels) == 1 && strings.ContainsAny(irc_channels[0], "<>") {
-		logger.LogErrorf("[IrcFilterList] unsupported query '%s' for LIST command", params[0])
-		return []string{}, []string{}, fmt.Errorf("Unsupported query '%s' for LIST command", params[0])
+		logger.LogErrorf("[IrcFilterList] unsupported query '%s' for LIST command", query)
+		return []string{}, []string{}, fmt.Errorf("Unsupported query '%s' for LIST command", query)
 	}
 
 	// Search valid channels for case "LIST [<channel>{,<channel>}]"

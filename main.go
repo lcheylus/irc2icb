@@ -250,12 +250,17 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			}
 
 		case irc.IrcCommandList:
-			// TODO Filter with pattern #group*
 			// TODO Add cache with duration => not query ICB server for
 			// groups/users for each LIST command
 
 			// Filter channels/groups with IRC command "LIST" paramaters
-			valid_channels, invalid_channels, err := irc.IrcFilterList(params)
+			var query string
+			if len(params) == 0 {
+				query = ""
+			} else {
+				query = params[0]
+			}
+			valid_channels, invalid_channels, err := irc.IrcFilterList(query)
 			if err != nil {
 				irc.IrcSendRaw(irc_conn, "ERROR :%s", err.Error())
 				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_LISTEND"], ":End of /LIST")
@@ -280,6 +285,17 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 				n_users, _ := strconv.Atoi(valid_channels[0][1:])
 				for _, group := range icb.IcbGroups {
 					if len(group.Users) >= n_users {
+						valid_groups = append(valid_groups, group)
+					}
+				}
+				goto SendListReplies
+			}
+
+			// LIST command to filter channels with pattern ('#chan*')
+			if len(valid_channels) == 1 && strings.HasSuffix(valid_channels[0], "*") {
+				prefix := strings.Trim(valid_channels[0], "*")
+				for _, group := range icb.IcbGroups {
+					if strings.HasPrefix(group.Name, utils.GroupFromChannel(prefix)) {
 						valid_groups = append(valid_groups, group)
 					}
 				}
