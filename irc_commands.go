@@ -154,47 +154,50 @@ func ircCommandNames(irc_conn net.Conn, icb_conn net.Conn, params string) {
 // Inputs:
 // - irc_conn (net.Conn): connection to IRC client
 // - icb_conn (net.Conn): connection to ICB server
-// - nick (string): parameter from WHOIS command
-// TODO Handle case for multiple nicks in WHOIS command
-func ircCommandWhois(irc_conn net.Conn, icb_conn net.Conn, nick string) {
+// - params (string): parameter from WHOIS command
+func ircCommandWhois(irc_conn net.Conn, icb_conn net.Conn, params string) {
 	// This command is used to query information about a particular user.
 	// The server SHOULD answer this command with numeric messages with information about the nick.
-	logger.LogInfof("WHOIS command => nick = %s", nick)
+	logger.LogInfof("WHOIS command => params = '%s'", params)
 
 	icb.IcbQueryGroupsUsers(icb_conn, false)
 
-	icb_user := icb.IcbGetUser(nick)
-	if icb_user == nil {
-		irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["ERR_NOSUCHNICK"], "%s :No such nick", nick)
-		return
-	}
+	nicks := strings.Split(params, ",")
 
-	// Send replies for WHOIS nick
-	irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_WHOISUSER"], "%s %s %s * :no realname for ICB",
-		nick, icb_user.Username, utils.TrimHostname(icb_user.Hostname))
-	irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_WHOISSERVER"], "%s :%s",
-		icb.GetIcbHostId(), icb.GetIcbServerId())
-	irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_WHOISIDLE"], "%s %d %d :seconds idle, signon time",
-		nick, icb_user.Idle, icb_user.LoginTime.Unix())
-
-	// Get current ICB group for nick
-	var current_group string = ""
-	for _, group := range icb.IcbGroups {
-		if group.IcbUserInGroup(nick) {
-			current_group = group.Name
+	for _, nick := range nicks {
+		icb_user := icb.IcbGetUser(nick)
+		if icb_user == nil {
+			irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["ERR_NOSUCHNICK"], "%s :No such nick", nick)
+			return
 		}
-	}
 
-	if current_group != "" {
-		var prefix string
-		if icb_user.Moderator {
-			prefix = "@"
-		} else {
-			prefix = ""
+		// Send replies for WHOIS nick
+		irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_WHOISUSER"], "%s %s %s * :no realname for ICB",
+			nick, icb_user.Username, utils.TrimHostname(icb_user.Hostname))
+		irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_WHOISSERVER"], "%s :%s",
+			icb.GetIcbHostId(), icb.GetIcbServerId())
+		irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_WHOISIDLE"], "%s %d %d :seconds idle, signon time",
+			nick, icb_user.Idle, icb_user.LoginTime.Unix())
+
+		// Get current ICB group for nick
+		var current_group string = ""
+		for _, group := range icb.IcbGroups {
+			if group.IcbUserInGroup(nick) {
+				current_group = group.Name
+			}
 		}
-		irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_WHOISCHANNELS"], "%s :%s#%s", nick, prefix, current_group)
+
+		if current_group != "" {
+			var prefix string
+			if icb_user.Moderator {
+				prefix = "@"
+			} else {
+				prefix = ""
+			}
+			irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_WHOISCHANNELS"], "%s :%s#%s", nick, prefix, current_group)
+		}
+		irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_ENDOFWHOIS"], "%s :End of /WHOIS list", nick)
 	}
-	irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_ENDOFWHOIS"], "%s :End of /WHOIS list", nick)
 }
 
 ///
