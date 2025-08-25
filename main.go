@@ -258,22 +258,20 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			valid_channels, invalid_channels, err := irc.IrcFilterList(params)
 			if err != nil {
 				irc.IrcSendRaw(irc_conn, "ERROR :%s", err.Error())
+				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_LISTEND"], ":End of /LIST")
 				break
 			}
 
-			logger.LogInfo("LIST command => send ICB command to list groups and users")
+			logger.LogInfo("LIST command => send ICB command to get groups and users")
 			icb.IcbQueryGroupsUsers(icb_conn, true)
 
 			var valid_groups []*icb.IcbGroup
-			var invalid_groups []string
 
 			// LIST command for all channels
-			// TODO Fix case if len(valid_channels) == 0 and invalid_channels not null
-			if len(valid_channels) == 0 {
+			if len(valid_channels) == 0 && len(invalid_channels) == 0 {
 				for _, group := range icb.IcbGroups {
 					valid_groups = append(valid_groups, group)
 				}
-				invalid_groups = []string{}
 				goto SendListReplies
 			}
 
@@ -285,7 +283,6 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 						valid_groups = append(valid_groups, group)
 					}
 				}
-				invalid_groups = []string{}
 				goto SendListReplies
 			}
 
@@ -294,10 +291,10 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 				if group != nil {
 					valid_groups = append(valid_groups, group)
 				} else {
-					invalid_groups = append(invalid_groups, utils.GroupFromChannel(irc_channel))
+					irc.IrcSendNotice(irc_conn, "*** :Unknown ICB group '%s' in LIST command", utils.GroupFromChannel(irc_channel))
 				}
 			}
-			irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_LISTEND"], ":End of /LIST")
+			goto SendListReplies
 
 		SendListReplies:
 			logger.LogDebugf("Send reply to LIST command - nick = %s", irc.IrcNick)
@@ -309,12 +306,9 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			}
 			irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_LISTEND"], ":End of /LIST")
 
-			// Send IRC notice for each invalid group
+			// Send IRC notice for each invalid channel
 			for _, irc_channel := range invalid_channels {
-				invalid_groups = append(invalid_groups, irc_channel)
-			}
-			for _, group := range invalid_groups {
-				irc.IrcSendNotice(irc_conn, "*** :Invalid ICB group '%s' in LIST command", group)
+				irc.IrcSendNotice(irc_conn, "*** :Invalid channel '%s' in LIST command", irc_channel)
 			}
 
 		case irc.IrcCommandNames:

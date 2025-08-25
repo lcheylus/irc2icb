@@ -233,8 +233,8 @@ func IrcFilterList(params []string) ([]string, []string, error) {
 	}
 	irc_channels := strings.Split(params[0], ",")
 	if len(irc_channels) == 1 && strings.ContainsAny(irc_channels[0], "<>") {
-		logger.LogErrorf("[IrcFilterList] invalid query '%s' for LIST command", params[0])
-		return []string{}, []string{}, fmt.Errorf("Invalid query '%s' for LIST command", params[0])
+		logger.LogErrorf("[IrcFilterList] unsupported query '%s' for LIST command", params[0])
+		return []string{}, []string{}, fmt.Errorf("Unsupported query '%s' for LIST command", params[0])
 	}
 
 	// Search valid channels for case "LIST [<channel>{,<channel>}]"
