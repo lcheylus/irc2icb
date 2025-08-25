@@ -85,14 +85,14 @@ func IcbQueryGroupsUsers(icb_conn net.Conn, force bool) {
 	seconds := int((duration % time.Minute) / time.Second)
 
 	if !force && (len(IcbGroups) != 0) && (duration <= time.Duration(MAX_AGE_INFOS)*time.Minute) {
-		logger.LogDebugf("ICB - [IcbQueryGroupsUsers] Get infos for groups/users - last refresh = %d minutes, %d seconds (<= %d minutes) => no query to ICB server", minutes, seconds, MAX_AGE_INFOS)
+		logger.LogDebugf("[IcbQueryGroupsUsers] Get infos for groups/users - last refresh = %d minutes, %d seconds (<= %d minutes) => no query to ICB server", minutes, seconds, MAX_AGE_INFOS)
 		return
 	}
 
 	if force || len(IcbGroups) == 0 {
-		logger.LogDebugf("ICB - [IcbQueryGroupsUsers] Get infos for groups/users => query from ICB server")
+		logger.LogDebugf("[IcbQueryGroupsUsers] Get infos for groups/users => query from ICB server")
 	} else {
-		logger.LogDebugf("ICB - [IcbQueryGroupsUsers] Get infos for groups/users - last refresh = %d minutes, %d seconds (> %d minutes) => query to ICB server", minutes, seconds, MAX_AGE_INFOS)
+		logger.LogDebugf("[IcbQueryGroupsUsers] Get infos for groups/users - last refresh = %d minutes, %d seconds (> %d minutes) => query to ICB server", minutes, seconds, MAX_AGE_INFOS)
 	}
 
 	icbResetGroups()
@@ -103,7 +103,7 @@ func IcbQueryGroupsUsers(icb_conn net.Conn, force bool) {
 	IcbSendList(icb_conn)
 	// Wait reception of groups via ICB
 	<-chGroupsReceived
-	logger.LogInfo("ICB - List of groups received")
+	logger.LogInfo("List of groups received")
 
 	// Send ICB command to list users
 	chUsersReceived = make(chan struct{})
@@ -111,7 +111,7 @@ func IcbQueryGroupsUsers(icb_conn net.Conn, force bool) {
 
 	// Wait reception of users via ICB
 	<-chUsersReceived
-	logger.LogInfo("ICB - List of users received")
+	logger.LogInfo("List of users received")
 
 	// Dump list of groups and users received from ICB server
 	var groups []string
@@ -123,8 +123,8 @@ func IcbQueryGroupsUsers(icb_conn net.Conn, force bool) {
 	for _, user := range IcbUsers {
 		users = append(users, user.Nick)
 	}
-	logger.LogInfof("ICB - %d groups - %q", len(groups), groups)
-	logger.LogInfof("ICB - %d users - %q", len(users), users)
+	logger.LogInfof("%d groups - %q", len(groups), groups)
+	logger.LogInfof("%d users - %q", len(users), users)
 
 	icbInfosLastRefresh = time.Now()
 }
@@ -153,7 +153,7 @@ func (group *IcbGroup) icbGetGroupModerator() string {
 			return user.Nick
 		}
 	}
-	logger.LogWarnf("ICB - [icbGetGroupModerator] unable to find moderator of group %s", group.Name)
+	logger.LogWarnf("[icbGetGroupModerator] unable to find moderator of group %s", group.Name)
 	return ""
 }
 
@@ -167,7 +167,7 @@ func IcbGetGroup(name string) *IcbGroup {
 			return group
 		}
 	}
-	logger.LogWarnf("ICB - [icbGetGroup] unable to find group '%s' in list of groups", name)
+	logger.LogWarnf("[icbGetGroup] unable to find group '%s' in list of groups", name)
 	return nil
 }
 
@@ -248,20 +248,20 @@ func IcbGetUser(nick string) *IcbUser {
 			return user
 		}
 	}
-	logger.LogWarnf("ICB - [icbGetUser] unable to find user for nick '%s' in list of users", nick)
+	logger.LogWarnf("[icbGetUser] unable to find user for nick '%s' in list of users", nick)
 	return nil
 }
 
 // Print ICB User
 func (user *IcbUser) icbPrintUser() {
-	logger.LogDebugf("ICB - [User] Moderator = %v", user.Moderator)
-	logger.LogDebugf("ICB - [User] Nick = %s", user.Nick)
-	logger.LogDebugf("ICB - [User] Idle = %d", user.Idle)
-	logger.LogDebugf("ICB - [User] LoginTime = %s", user.LoginTime.String())
-	logger.LogDebugf("ICB - [User] Username = %s", user.Username)
-	logger.LogDebugf("ICB - [User] Hostname = %s", user.Hostname)
-	logger.LogDebugf("ICB - [User] Registration status = '%s'", user.RegStatus)
-	logger.LogDebugf("ICB - [User] Current group = '%s'", icbGroupReceivedCurrent)
+	logger.LogDebugf("[User] Moderator = %v", user.Moderator)
+	logger.LogDebugf("[User] Nick = %s", user.Nick)
+	logger.LogDebugf("[User] Idle = %d", user.Idle)
+	logger.LogDebugf("[User] LoginTime = %s", user.LoginTime.String())
+	logger.LogDebugf("[User] Username = %s", user.Username)
+	logger.LogDebugf("[User] Hostname = %s", user.Hostname)
+	logger.LogDebugf("[User] Registration status = '%s'", user.RegStatus)
+	logger.LogDebugf("[User] Current group = '%s'", icbGroupReceivedCurrent)
 }
 
 // Parse Command Output for type = 'wl' and returns ICB User parsed from data
@@ -277,7 +277,7 @@ func icbParseUser(fields []string) (*IcbUser, error) {
 	moderator := fields[0]
 	if moderator != " " {
 		if moderator != "m" && moderator != "*" {
-			logger.LogWarnf("ICB - invalid moderator status = '%s'", moderator)
+			logger.LogWarnf("invalid moderator status = '%s'", moderator)
 		} else {
 			user.Moderator = true
 		}
@@ -285,13 +285,13 @@ func icbParseUser(fields []string) (*IcbUser, error) {
 	user.Nick = fields[1]
 	user.Idle, err = strconv.Atoi(fields[2])
 	if err != nil {
-		logger.LogErrorf("ICB - invalid idle time for user %s - value = %s", user.Nick, fields[2])
+		logger.LogErrorf("invalid idle time for user %s - value = %s", user.Nick, fields[2])
 		user.Idle = 0
 	}
 	// Unix time format
 	user.LoginTime, err = stringToTime(fields[4])
 	if err != nil {
-		logger.LogErrorf("ICB - invalid login time for user %s - value = %s", user.Nick, fields[4])
+		logger.LogErrorf("invalid login time for user %s - value = %s", user.Nick, fields[4])
 	}
 	user.Username = fields[5]
 	user.Hostname = fields[6]

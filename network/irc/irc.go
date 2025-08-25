@@ -128,52 +128,52 @@ func IrcCommand(conn net.Conn, data string) (int, []string) {
 
 	switch msg.Command {
 	case "PRIVMSG":
-		logger.LogTracef("IRC - Received PRIVMSG command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
+		logger.LogTracef("Received PRIVMSG command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
 		return IrcCommandMsg, []string{msg.Params[0], msg.Trailing}
 	case "PASS":
 		IrcPassword = msg.Params[0]
-		logger.LogTracef("IRC - Received PASS command  - password = %s", IrcPassword)
+		logger.LogTracef("Received PASS command  - password = %s", IrcPassword)
 		return IrcCommandPass, []string{IrcPassword}
 	case "NICK":
-		logger.LogTracef("IRC - Received NICK command  - nick = %s", msg.Params[0])
+		logger.LogTracef("Received NICK command  - nick = %s", msg.Params[0])
 		return IrcCommandNick, []string{msg.Params[0]}
 	case "USER":
 		IrcUser = msg.Params[0]
 		IrcRealname = msg.Trailing
-		logger.LogTracef("IRC - Received USER command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
+		logger.LogTracef("Received USER command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
 		return IrcCommandUser, []string{IrcUser, IrcRealname}
 	case "JOIN":
-		logger.LogTracef("IRC - Received JOIN command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
+		logger.LogTracef("Received JOIN command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
 		// TODO Handle case with multiple groups in params
 		return IrcCommandJoin, msg.Params
 	case "PART":
-		logger.LogTracef("IRC - Received PART command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
+		logger.LogTracef("Received PART command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
 		if !utils.IsValidIrcChannel(msg.Params[0]) {
-			logger.LogErrorf("IRC - invalid channel '%s' in PART command, don't start with #", msg.Params[0])
+			logger.LogErrorf("invalid channel '%s' in PART command, don't start with #", msg.Params[0])
 		}
 		// Don't need to get channel the user is leaving, == current ICB group
 		return IrcCommandNop, nil
 	case "LIST":
-		logger.LogTracef("IRC - Received LIST command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
+		logger.LogTracef("Received LIST command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
 		if len(msg.Params) == 0 {
 			return IrcCommandList, []string{}
 		} else {
 			return IrcCommandList, []string{msg.Params[0]}
 		}
 	case "NAMES":
-		logger.LogTracef("IRC - Received NAMES command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
+		logger.LogTracef("Received NAMES command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
 		return IrcCommandNames, []string{msg.Params[0]}
 	case "MODE":
-		logger.LogTracef("IRC - Received MODE command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
+		logger.LogTracef("Received MODE command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
 		return IrcCommandMode, msg.Params
 	case "WHO":
-		logger.LogTracef("IRC - Received WHO command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
+		logger.LogTracef("Received WHO command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
 		return IrcCommandWho, msg.Params
 	case "WHOIS":
-		logger.LogTracef("IRC - Received WHOIS command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
+		logger.LogTracef("Received WHOIS command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
 		return IrcCommandWhois, msg.Params
 	case "TOPIC":
-		logger.LogTracef("IRC - Received TOPIC command  - params = %s - trailing = '%s'", msg.Params, msg.Trailing)
+		logger.LogTracef("Received TOPIC command  - params = %s - trailing = '%s'", msg.Params, msg.Trailing)
 		// Case for "get topic" => no trailing
 		if msg.Trailing == "" && !strings.HasSuffix(data, ":") {
 			return IrcCommandTopic, []string{msg.Params[0]}
@@ -181,20 +181,20 @@ func IrcCommand(conn net.Conn, data string) (int, []string) {
 			return IrcCommandTopic, []string{msg.Params[0], msg.Trailing}
 		}
 	case "KICK":
-		logger.LogTracef("IRC - Received KICK command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
+		logger.LogTracef("Received KICK command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
 		// Trailing = reason for KICK => not used in ICB boot command
 		return IrcCommandKick, []string{msg.Params[0], msg.Params[1]}
 	case "PING":
-		logger.LogTracef("IRC - Received PING command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
+		logger.LogTracef("Received PING command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
 		return IrcCommandPing, []string{msg.Params[0]}
 	case "QUIT":
-		logger.LogTracef("IRC - Received QUIT command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
+		logger.LogTracef("Received QUIT command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
 		return IrcCommandQuit, nil
 	case "RAWICB":
-		logger.LogTracef("IRC - Received RAWICB command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
+		logger.LogTracef("Received RAWICB command  - params = %s - trailing = %s", msg.Params, msg.Trailing)
 		return IrcCommandRawIcb, msg.Params
 	default:
-		logger.LogWarnf("IRC - Received unknown command '%s'", msg.Command)
+		logger.LogWarnf("Received unknown command '%s'", msg.Command)
 	}
 
 	// PART
@@ -217,7 +217,7 @@ func IrcCommand(conn net.Conn, data string) (int, []string) {
 func IrcFilterList(params []string) ([]string, []string, error) {
 	// Command = LIST
 	if len(params) == 0 {
-		logger.LogDebug("IRC - [IrcFilterList] LIST command with no parameter")
+		logger.LogDebug("[IrcFilterList] LIST command with no parameter")
 		return []string{}, []string{}, nil
 	}
 
@@ -225,7 +225,7 @@ func IrcFilterList(params []string) ([]string, []string, error) {
 	if strings.HasPrefix(params[0], ">") {
 		_, err := strconv.Atoi(params[0][1:])
 		if err != nil {
-			logger.LogErrorf("IRC - [IrcFilterList] invalid format (not number) in query '%s' for LIST command", params[0])
+			logger.LogErrorf("[IrcFilterList] invalid format (not number) in query '%s' for LIST command", params[0])
 			return []string{}, []string{}, fmt.Errorf("Invalid format (not number) in query '%s' for LIST command", params[0])
 		} else {
 			return params, []string{}, nil
@@ -233,7 +233,7 @@ func IrcFilterList(params []string) ([]string, []string, error) {
 	}
 	irc_channels := strings.Split(params[0], ",")
 	if len(irc_channels) == 1 && strings.ContainsAny(irc_channels[0], "<>") {
-		logger.LogErrorf("IRC - [IrcFilterList] invalid query '%s' for LIST command", params[0])
+		logger.LogErrorf("[IrcFilterList] invalid query '%s' for LIST command", params[0])
 		return []string{}, []string{}, fmt.Errorf("Invalid query '%s' for LIST command", params[0])
 	}
 
@@ -247,7 +247,7 @@ func IrcFilterList(params []string) ([]string, []string, error) {
 			invalid_channels = append(invalid_channels, irc_channel)
 		}
 	}
-	logger.LogDebugf("IRC - [IrcFilterList] valid_channels = %q - invalid_channels = %q", valid_channels, invalid_channels)
+	logger.LogDebugf("[IrcFilterList] valid_channels = %q - invalid_channels = %q", valid_channels, invalid_channels)
 	return valid_channels, invalid_channels, nil
 }
 
@@ -280,7 +280,7 @@ func IrcSendJoin(conn net.Conn, nick string, user string, host string, channel s
 // - host (string): hostname for user
 // - channel (string): channel which that client has left, prefixed with #
 func IrcSendPart(conn net.Conn, nick string, user string, host string, channel string) error {
-	logger.LogDebugf("IRC - Send PART message '%s!%s@%s' leave channel '%s'", nick, user, host, channel)
+	logger.LogDebugf("Send PART message '%s!%s@%s' leave channel '%s'", nick, user, host, channel)
 	msg := fmt.Sprintf(":%s!%s@%s PART %s\r\n", nick, user, host, channel)
 	_, err := conn.Write([]byte(msg))
 	return err
@@ -297,7 +297,7 @@ func IrcSendNotice(conn net.Conn, format string, args ...interface{}) error {
 // Example for RPL_WELCOME (001) code message: "001 <NICK> :Welcome to irc2icb proxy <NICK>"
 func IrcSendCode(conn net.Conn, nick string, code string, format string, args ...interface{}) error {
 	if nick == "" {
-		logger.LogWarn("IRC - nick not defined in irc.IrcSendCode function")
+		logger.LogWarn("nick not defined in irc.IrcSendCode function")
 	}
 
 	// TODO Add target as ICB HostId
@@ -309,10 +309,10 @@ func IrcSendCode(conn net.Conn, nick string, code string, format string, args ..
 
 	_, err := conn.Write([]byte(prefix + msg + "\r\n"))
 	if err != nil {
-		logger.LogDebugf("IRC - Error when sending message for %s code", getIrcReplyCode(code))
+		logger.LogDebugf("Error when sending message for %s code", getIrcReplyCode(code))
 		// TODO how to handle error if unable to send message
 	} else {
-		logger.LogDebugf("IRC - Send %s message to client - nick = %s", getIrcReplyCode(code), nick)
+		logger.LogDebugf("Send %s message to client - nick = %s", getIrcReplyCode(code), nick)
 	}
 
 	return err
@@ -322,7 +322,7 @@ func IrcSendCode(conn net.Conn, nick string, code string, format string, args ..
 func IrcSendRaw(conn net.Conn, format string, args ...interface{}) error {
 	msg := fmt.Sprintf(format, args...)
 	_, err := conn.Write([]byte(msg + "\r\n"))
-	logger.LogTracef("IRC - Send raw messages '%s'", msg)
+	logger.LogTracef("Send raw messages '%s'", msg)
 
 	return err
 }

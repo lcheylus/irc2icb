@@ -6,6 +6,8 @@ package utils
 import (
 	"fmt"
 	"log"
+	"runtime"
+	"strings"
 )
 
 type Level int
@@ -46,6 +48,27 @@ func WithoutColors() {
 	colorWhite = []byte("")
 }
 
+// Get package name of the function's caller
+// Return string as "[<name>]" with a fixed size of 6 chars (size of "[main]")
+func getPackageName() string {
+	// Get the caller's stack frame information (1 refers to the direct caller, 2 would be one level up)
+	_, file, _, ok := runtime.Caller(2)
+	if !ok {
+		return "unknown"
+	}
+
+	// Get the last segment of the file path
+	// The package name is usually the last part of the file path
+	segments := strings.Split(file, "/")
+	// Second last segment is usually the package name
+	name := segments[len(segments)-2]
+	if strings.Contains(name, "irc2icb") {
+		return "[main]"
+	} else {
+		return fmt.Sprintf("%6s", fmt.Sprintf("[%s]", name))
+	}
+}
+
 // Set logs level
 func SetLogLevel(level Level) {
 	logLevel = level
@@ -59,7 +82,7 @@ func getLevel() Level {
 // Print log for level = TRACE
 func LogTrace(msg string) {
 	if getLevel() <= LevelTrace {
-		prefix := fmt.Sprintf("%sTRACE%s", colorWhite, colorOff)
+		prefix := fmt.Sprintf("%sTRACE%s %s", colorWhite, colorOff, getPackageName())
 		log.Printf("%s %s", prefix, msg)
 	}
 }
@@ -67,7 +90,7 @@ func LogTrace(msg string) {
 // Print log for level = TRACE with string format
 func LogTracef(format string, args ...interface{}) {
 	if getLevel() <= LevelTrace {
-		prefix := fmt.Sprintf("%sTRACE%s", colorWhite, colorOff)
+		prefix := fmt.Sprintf("%sTRACE%s %s", colorWhite, colorOff, getPackageName())
 		log.Printf(prefix+" "+format, args...)
 	}
 }
@@ -75,7 +98,7 @@ func LogTracef(format string, args ...interface{}) {
 // Print log for level = DEBUG
 func LogDebug(msg string) {
 	if getLevel() <= LevelDebug {
-		prefix := fmt.Sprintf("%sDEBUG%s", colorGreen, colorOff)
+		prefix := fmt.Sprintf("%sDEBUG%s %s", colorGreen, colorOff, getPackageName())
 		log.Printf("%s %s", prefix, msg)
 	}
 }
@@ -83,7 +106,7 @@ func LogDebug(msg string) {
 // Print log for level = DEBUG with string format
 func LogDebugf(format string, args ...interface{}) {
 	if getLevel() <= LevelDebug {
-		prefix := fmt.Sprintf("%sDEBUG%s", colorGreen, colorOff)
+		prefix := fmt.Sprintf("%sDEBUG%s %s", colorGreen, colorOff, getPackageName())
 		log.Printf(prefix+" "+format, args...)
 	}
 }
@@ -91,7 +114,7 @@ func LogDebugf(format string, args ...interface{}) {
 // Print log for level = WARN
 func LogWarn(msg string) {
 	if getLevel() <= LevelWarn {
-		prefix := fmt.Sprintf("%sWARN%s ", colorOrange, colorOff)
+		prefix := fmt.Sprintf("%sWARN%s  %s", colorOrange, colorOff, getPackageName())
 		log.Printf("%s %s", prefix, msg)
 	}
 }
@@ -99,7 +122,7 @@ func LogWarn(msg string) {
 // Print log for level = WARN with string format
 func LogWarnf(format string, args ...interface{}) {
 	if getLevel() <= LevelWarn {
-		prefix := fmt.Sprintf("%sWARN%s ", colorOrange, colorOff)
+		prefix := fmt.Sprintf("%sWARN%s  %s", colorOrange, colorOff, getPackageName())
 		log.Printf(prefix+" "+format, args...)
 	}
 }
@@ -107,7 +130,7 @@ func LogWarnf(format string, args ...interface{}) {
 // Print log for level = INFO
 func LogInfo(msg string) {
 	if getLevel() <= LevelInfo {
-		prefix := fmt.Sprintf("%sINFO%s ", colorCyan, colorOff)
+		prefix := fmt.Sprintf("%sINFO%s  %s", colorCyan, colorOff, getPackageName())
 		log.Printf("%s %s", prefix, msg)
 	}
 }
@@ -115,31 +138,31 @@ func LogInfo(msg string) {
 // Print log for level = INFO with string format
 func LogInfof(format string, args ...interface{}) {
 	if getLevel() <= LevelInfo {
-		prefix := fmt.Sprintf("%sINFO%s ", colorCyan, colorOff)
+		prefix := fmt.Sprintf("%sINFO%s  %s", colorCyan, colorOff, getPackageName())
 		log.Printf(prefix+" "+format, args...)
 	}
 }
 
 // Print log for level = ERROR
 func LogError(msg string) {
-	prefix := fmt.Sprintf("%sERROR%s", colorRed, colorOff)
+	prefix := fmt.Sprintf("%sERROR%s %s", colorRed, colorOff, getPackageName())
 	log.Printf("%s %s", prefix, msg)
 }
 
 // Print log for level = ERROR with string format
 func LogErrorf(format string, args ...interface{}) {
-	prefix := fmt.Sprintf("%sERROR%s", colorRed, colorOff)
+	prefix := fmt.Sprintf("%sERROR%s %s", colorRed, colorOff, getPackageName())
 	log.Printf(prefix+" "+format, args...)
 }
 
 // Print log for level = ERROR then exit
 func LogFatal(msg string) {
-	prefix := fmt.Sprintf("%sFATAL%s", colorPurple, colorOff)
+	prefix := fmt.Sprintf("%sFATAL%s %s", colorPurple, colorOff, getPackageName())
 	log.Fatalf("%s %s", prefix, msg)
 }
 
 // Print log for level = ERROR with string format, then exit
 func LogFatalf(format string, args ...interface{}) {
-	prefix := fmt.Sprintf("%sFATAL%s", colorPurple, colorOff)
+	prefix := fmt.Sprintf("%sFATAL%s %s", colorPurple, colorOff, getPackageName())
 	log.Fatalf(prefix+" "+format, args...)
 }

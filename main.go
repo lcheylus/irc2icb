@@ -70,15 +70,15 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 
 	// Get client address
 	clientAddr := irc_conn.RemoteAddr().String()
-	logger.LogDebugf("IRC - Client connected from %s", clientAddr)
+	logger.LogDebugf("Client connected from %s", clientAddr)
 
 	// Send IRC notification to client
 	err := irc.IrcSendNotice(irc_conn, "*** IRC client connected to %s proxy - client addr=%s", version.Name, clientAddr)
 	if err != nil {
-		logger.LogErrorf("IRC - Error writing to client: %s", err.Error())
+		logger.LogErrorf("Error writing to client: %s", err.Error())
 		return
 	} else {
-		logger.LogDebug("IRC - Send notification to client")
+		logger.LogDebug("Send notification to client")
 	}
 
 	irc.IrcInit()
@@ -91,7 +91,7 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 	scanner := bufio.NewScanner(irc_conn)
 	for scanner.Scan() && icb.IcbConnected {
 		data := scanner.Text()
-		logger.LogTracef("IRC - Received from client [%s]: %s", clientAddr, data)
+		logger.LogTracef("Received from client [%s]: %s", clientAddr, data)
 
 		// Handle IRC client commands
 		ret, params := irc.IrcCommand(irc_conn, data)
@@ -99,12 +99,12 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 		case irc.IrcCommandMsg:
 			src := params[0]
 			content := params[1]
-			logger.LogTracef("IRC - Received message source = '%s' - content = '%s'", src, content)
+			logger.LogTracef("Received message source = '%s' - content = '%s'", src, content)
 
 			// Message sent to group
 			if utils.IsValidIrcChannel(src) {
 				group := utils.GroupFromChannel(src)
-				logger.LogInfof("IRC - Send message in group '%s'", group)
+				logger.LogInfof("Send message in group '%s'", group)
 
 				if icb.IcbGroupCurrent != group {
 					irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["ERR_NOSUCHCHANNEL"], "%s :No such channel", src)
@@ -113,12 +113,12 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 				icb.IcbSendOpenmsg(icb_conn, content)
 			} else {
 				// Case for private message
-				logger.LogInfof("IRC - Send private message for nick '%s'", src)
+				logger.LogInfof("Send private message for nick '%s'", src)
 				icb.IcbSendPrivatemsg(icb_conn, src, content)
 			}
 
 		case irc.IrcCommandPass:
-			logger.LogDebugf("IRC - password (used for ICB group during login) = '%s'", irc.IrcPassword)
+			logger.LogDebugf("password (used for ICB group during login) = '%s'", irc.IrcPassword)
 
 		case irc.IrcCommandNick:
 			if !icb.IcbLoggedIn {
@@ -137,20 +137,20 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 				defer icb_conn.Close()
 
 				ip := strings.Split(icb_conn.RemoteAddr().String(), ":")[0]
-				logger.LogInfof("ICB - Connected to server %s (%s) port %d", server_addr, ip, server_port)
+				logger.LogInfof("Connected to server %s (%s) port %d", server_addr, ip, server_port)
 
 				// Start routine to check if initial group is restricted or not
-				logger.LogInfo("ICB - Start routine to check access for initial group after login")
+				logger.LogInfo("Start routine to check access for initial group after login")
 				icb.IcbChGroupRestricted = make(chan struct{})
 				go icb.IcbWaitGroupRestricted(icb_conn, irc_conn, irc.IrcPassword)
 
 				// Start routine to join group after first login
-				logger.LogInfo("ICB - Start routine to join group after login")
+				logger.LogInfo("Start routine to join group after login")
 				icb.IcbChFirstJoin = make(chan struct{})
 				go icb.IcbJoinAfterLogin(icb_conn, irc_conn)
 
 				// Loop to read ICB packets from server
-				logger.LogInfo("ICB - Start loop to read packets from server")
+				logger.LogInfo("Start loop to read packets from server")
 				go icb.GetIcbPackets(icb_conn, irc_conn, ctx)
 
 			} else {
@@ -172,7 +172,7 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			}
 
 		case irc.IrcCommandUser:
-			logger.LogDebugf("IRC - user = %s - realname = '%s'", irc.IrcUser, irc.IrcRealname)
+			logger.LogDebugf("user = %s - realname = '%s'", irc.IrcUser, irc.IrcRealname)
 
 		case irc.IrcCommandJoin:
 			// TODO Handle special case with params == '0' => client leave all channels
@@ -180,7 +180,7 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			// With ICB protocol, only one current group
 			// Format for JOIN paramaters: "<channel>{,<channel>} [<key>{,<key>}]"
 			if len(strings.Split(params[0], ",")) > 1 {
-				logger.LogErrorf("IRC - Only one unique ICB group for JOIN command - Received '%s'", params[0])
+				logger.LogErrorf("Only one unique ICB group for JOIN command - Received '%s'", params[0])
 				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["ERR_NEEDMOREPARAMS"], "JOIN :Only one unique ICB group for join")
 				break
 			}
@@ -188,7 +188,7 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			var group string
 
 			if !utils.IsValidIrcChannel(params[0]) {
-				logger.LogErrorf("IRC - invalid group '%s' (don't start with #)", params[0])
+				logger.LogErrorf("invalid group '%s' (don't start with #)", params[0])
 				irc.IrcSendRaw(irc_conn, "ERROR :Invalid syntax for group '%s' in join (must start with #)", params[0])
 				break
 			} else {
@@ -196,7 +196,7 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			}
 
 			if icb.IcbGroupCurrent == group {
-				logger.LogWarnf("IRC - JOIN command => already in ICB group '%s'", group)
+				logger.LogWarnf("JOIN command => already in ICB group '%s'", group)
 				irc.IrcSendNotice(irc_conn, "*** :You are already in ICB group %s", group)
 				break
 			} else {
@@ -205,8 +205,8 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 				// Get users for group
 				icb_group = icb.IcbGetGroup(group)
 				if icb_group == nil {
-					logger.LogWarnf("IRC - JOIN command => unable to find current group '%s' in ICB groups list", group)
-					logger.LogInfo("IRC - JOIN command => send ICB command to list groups and users")
+					logger.LogWarnf("JOIN command => unable to find current group '%s' in ICB groups list", group)
+					logger.LogInfo("JOIN command => send ICB command to list groups and users")
 
 					icb.IcbQueryGroupsUsers(icb_conn, true)
 
@@ -220,12 +220,12 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 
 				// Leave previous group
 				if icb.IcbGroupCurrent != "" {
-					logger.LogInfof("IRC - JOIN command => leave previous channel '%s'", utils.GroupToChannel(icb.IcbGroupCurrent))
+					logger.LogInfof("JOIN command => leave previous channel '%s'", utils.GroupToChannel(icb.IcbGroupCurrent))
 					icb_user := icb.IcbGetUser(irc.IrcNick)
 					irc.IrcSendPart(irc_conn, irc.IrcNick, icb_user.Username, icb_user.Hostname, utils.GroupToChannel(icb.IcbGroupCurrent))
 				}
 
-				logger.LogDebugf("IRC - JOIN command => send ICB command to join group '%s'", group)
+				logger.LogDebugf("JOIN command => send ICB command to join group '%s'", group)
 
 				// Case when it's not the first login
 				if icb.IcbGroupCurrent != "" {
@@ -235,13 +235,13 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 					// Wait Error packet if group is restricted, with timeout
 					select {
 					case <-icb.IcbChGroupRestricted:
-						logger.LogWarnf("ICB - Unable to join group '%s' => restricted", group)
+						logger.LogWarnf("Unable to join group '%s' => restricted", group)
 						irc.IrcSendRaw(irc_conn, "ERROR :Access to ICB group %s is restricted", group)
 						icb.IcbJoinGroup(icb_conn, previous_group)
 						group = previous_group
 						irc.IrcSendNotice(irc_conn, "*** :Rejoin previous ICB group %s", group)
 					case <-time.After(1 * time.Second):
-						logger.LogDebugf("ICB - No restriction to join group '%s'", group)
+						logger.LogDebugf("No restriction to join group '%s'", group)
 					}
 
 					icb.IcbGroupCurrent = group
@@ -261,13 +261,14 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 				break
 			}
 
-			logger.LogInfo("IRC - LIST command => send ICB command to list groups and users")
+			logger.LogInfo("LIST command => send ICB command to list groups and users")
 			icb.IcbQueryGroupsUsers(icb_conn, true)
 
 			var valid_groups []*icb.IcbGroup
 			var invalid_groups []string
 
 			// LIST command for all channels
+			// TODO Fix case if len(valid_channels) == 0 and invalid_channels not null
 			if len(valid_channels) == 0 {
 				for _, group := range icb.IcbGroups {
 					valid_groups = append(valid_groups, group)
@@ -299,11 +300,11 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_LISTEND"], ":End of /LIST")
 
 		SendListReplies:
-			logger.LogDebugf("IRC - Send reply to LIST command - nick = %s", irc.IrcNick)
+			logger.LogDebugf("Send reply to LIST command - nick = %s", irc.IrcNick)
 
 			// Send IRC numeric reply RPL_LIST for each valid group
 			for _, group := range valid_groups {
-				logger.LogDebugf("ICB - [Group] Name = %s - Topic = '%s' - %d users %q", group.Name, group.Topic, len(group.Users), group.Users)
+				logger.LogDebugf("[Group] Name = %s - Topic = '%s' - %d users %q", group.Name, group.Topic, len(group.Users), group.Users)
 				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_LIST"], "%s %d :%s", utils.GroupToChannel(group.Name), len(group.Users), group.Topic)
 			}
 			irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_LISTEND"], ":End of /LIST")
@@ -317,7 +318,7 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			}
 
 		case irc.IrcCommandNames:
-			logger.LogInfof("IRC - NAMES command => paramaters = %s", params[0])
+			logger.LogInfof("NAMES command => paramaters = %s", params[0])
 			channels := strings.Split(params[0], ",")
 
 			icb.IcbQueryGroupsUsers(icb_conn, false)
@@ -328,7 +329,7 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 				// If the channel name is invalid or the channel does not exist,
 				// one RPL_ENDOFNAMES numeric containing the given channel name should be returned
 				if !utils.IsValidIrcChannel(channel) {
-					logger.LogErrorf("IRC - invalid parameter '%s' for NAMES command", channel)
+					logger.LogErrorf("invalid parameter '%s' for NAMES command", channel)
 					irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_ENDOFNAMES"], "%s :End of /NAMES list", channel)
 					break
 				} else {
@@ -357,9 +358,9 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			}
 
 		case irc.IrcCommandMode:
-			logger.LogInfof("IRC - MODE command => parameters = %q", params)
+			logger.LogInfof("MODE command => parameters = %q", params)
 			if !utils.IsValidIrcChannel(params[0]) || utils.GroupFromChannel(params[0]) != icb.IcbGroupCurrent {
-				logger.LogDebugf("IRC - MODE command not for current ICB group => nothing to do - params = %q", params)
+				logger.LogDebugf("MODE command not for current ICB group => nothing to do - params = %q", params)
 				// TODO Return message for error
 				break
 			}
@@ -368,20 +369,20 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 				// No need to send IRC reply RPL_CHANNELMODEIS (324)
 				// TODO Send ICB command to get users ?
 				// see https://github.com/lcheylus/icbirc-portable/blob/5117d377af58aedc94caf89208df477c2aa8a722/src/irc.c#L159
-				logger.LogDebugf("ICB - MODE command for group '%s' => TODO: get ICB users", params[0])
+				logger.LogDebugf("MODE command for group '%s' => TODO: get ICB users", params[0])
 				break
 			}
 
 			// Case for <modestring> defined
 			if len(params) > 1 {
 				if params[1] != "+o" {
-					logger.LogErrorf("IRC - MODE command: invalid args '%s'", params[1])
+					logger.LogErrorf("MODE command: invalid args '%s'", params[1])
 					break
 				} else if len(params) < 3 {
-					logger.LogError("IRC - MODE command: no nick to pass moderation (+o)")
+					logger.LogError("MODE command: no nick to pass moderation (+o)")
 					break
 				} else {
-					logger.LogDebugf("ICB - MODE command to pass moderation to '%s' (TODO)", params[2])
+					logger.LogDebugf("MODE command to pass moderation to '%s' (TODO)", params[2])
 					// TODO Command MODE +o <nick> => pass moderation to nick, send ICB command
 					// Check if user exists in ICBUsers
 					// icb_send_pass(server_fd, argv[3])
@@ -393,16 +394,16 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			// and who don't have a common channel with the requesting client) are listed.
 			// The same result can be achieved by using a <mask> of "0" or any wildcard which will end up
 			// matching every visible user.
-			logger.LogInfof("IRC - WHO command => params = %q", params)
+			logger.LogInfof("WHO command => params = %q", params)
 
 			if len(params) == 0 || params[0] == "0" {
-				logger.LogInfo("ICB - WHO command => (TODO) case not handled to list all visible users")
+				logger.LogInfo("WHO command => (TODO) case not handled to list all visible users")
 				break
 			}
 
 			// mask = channel
 			if utils.IsValidIrcChannel(params[0]) {
-				logger.LogDebug("ICB - WHO command => query groups and users")
+				logger.LogDebug("WHO command => query groups and users")
 
 				icb.IcbQueryGroupsUsers(icb_conn, false)
 
@@ -410,7 +411,7 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 				group := utils.GroupFromChannel(params[0])
 				icb_group := icb.IcbGetGroup(group)
 				if icb_group == nil {
-					logger.LogErrorf("ICB - WHO command => unknown group '%s'", group)
+					logger.LogErrorf("WHO command => unknown group '%s'", group)
 					irc.IrcSendRaw(irc_conn, "ERROR :Unknown ICB group '%s' for WHO command", group)
 					break
 				}
@@ -428,12 +429,12 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 				break
 			}
 			// TODO Case if mask != channel
-			logger.LogInfof("ICB - WHO command => (TODO) case not handled for mask '%s'", params[0])
+			logger.LogInfof("WHO command => (TODO) case not handled for mask '%s'", params[0])
 
 		case irc.IrcCommandWhois:
 			// This command is used to query information about a particular user.
 			// The server SHOULD answer this command with numeric messages with information about the nick.
-			logger.LogInfof("IRC - WHOIS command => params = %q", params)
+			logger.LogInfof("WHOIS command => params = %q", params)
 
 			icb.IcbQueryGroupsUsers(icb_conn, false)
 
@@ -472,7 +473,7 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_ENDOFWHOIS"], "%s :End of /WHOIS list", nick)
 
 		case irc.IrcCommandTopic:
-			logger.LogInfof("IRC - TOPIC command params = %q", params)
+			logger.LogInfof("TOPIC command params = %q", params)
 
 			// Get topic for current group => get topic from ICB with topic = ""
 			// Reply from parsing Generic command output
@@ -498,7 +499,7 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 
 			// Set/delete topic
 			if params[0] != utils.GroupToChannel(icb.IcbGroupCurrent) {
-				logger.LogWarnf("IRC - invalid channel '%s' for TOPIC command", params[0])
+				logger.LogWarnf("invalid channel '%s' for TOPIC command", params[0])
 				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["ERR_NOTONCHANNEL"], "%s :You're not on that channel", params[0])
 				break
 			}
@@ -512,7 +513,7 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 		case irc.IrcCommandKick:
 			// params[0] = channel
 			// params[1] = "user *( "," user)"
-			logger.LogInfof("IRC - KICK command to kick nicks '%s' from channel '%s'", params[1], params[0])
+			logger.LogInfof("KICK command to kick nicks '%s' from channel '%s'", params[1], params[0])
 			if len(params) != 2 {
 				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["ERR_NEEDMOREPARAMS"], "%s :Invalid KICK command, needs more parameters", params[0])
 				break
@@ -525,26 +526,26 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			for _, user := range users {
 				group := icb.IcbGetGroup(utils.GroupFromChannel(params[0]))
 				if !group.IcbUserInGroup(user) {
-					logger.LogDebugf("IRC - KICK command nick '%s' => not in channel '%s'", user, params[0])
+					logger.LogDebugf("KICK command nick '%s' => not in channel '%s'", user, params[0])
 					irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["ERR_NOTONCHANNEL"], "%s :%s isn't on that channel", params[0], user)
 				} else {
-					logger.LogDebugf("IRC - KICK command to kick nick '%s' from channel '%s'", user, params[0])
+					logger.LogDebugf("KICK command to kick nick '%s' from channel '%s'", user, params[0])
 					// If not moderator, error ERR_CHANOPRIVSNEEDED sent via ICB Error parsing
 					icb.IcbSendBoot(icb_conn, user)
 				}
 			}
 
 		case irc.IrcCommandQuit:
-			logger.LogInfof("IRC - Client disconnected: %s\n", clientAddr)
+			logger.LogInfof("Client disconnected: %s\n", clientAddr)
 			close_icb_connection()
 
 		case irc.IrcCommandPing:
-			logger.LogDebugf("IRC - Send PONG message")
+			logger.LogDebugf("Send PONG message")
 			irc.IrcSendRaw(irc_conn, "PONG %s", params[0])
 			icb.IcbSendNoop(icb_conn)
 
 		case irc.IrcCommandRawIcb:
-			logger.LogDebugf("IRC - Raw ICB command = '%s'", strings.Join(params, " "))
+			logger.LogDebugf("Raw ICB command = '%s'", strings.Join(params, " "))
 			icb.IcbSendRaw(icb_conn, strings.Join(params, " "))
 
 		case irc.IrcCommandNop:
@@ -554,7 +555,7 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 	}
 
 	icb.IcbLoggedIn = false
-	logger.LogInfof("IRC - Disconnected from ICB server => stop to handle IRC commands from client")
+	logger.LogInfof("Disconnected from ICB server => stop to handle IRC commands from client")
 	irc.IrcSendNotice(irc_conn, "*** Disconnected from ICB server => proxy stops to reply to IRC commands")
 }
 
@@ -570,6 +571,7 @@ func runIRCDaemon(pathname string, listen_addr string, listen_port int, server_a
 		file, _ := os.OpenFile(pathname, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 		defer file.Close()
 
+		// TODO Send logs via syslog, remove logs file
 		log.SetOutput(file)
 		log.SetFlags(log.LstdFlags)
 		logger.WithoutColors()

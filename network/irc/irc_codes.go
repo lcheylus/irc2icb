@@ -61,6 +61,6 @@ func getIrcReplyCode(val string) string {
 			return name
 		}
 	}
-	logger.LogWarnf("IRC - getIrcReplyCode: unable to get key for code '%s'", val)
+	logger.LogWarnf("getIrcReplyCode: unable to get key for code '%s'", val)
 	return ""
 }
