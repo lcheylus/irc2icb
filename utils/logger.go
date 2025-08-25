@@ -1,4 +1,4 @@
-// Package for outputs/logs with level Debug, Info and Error
+// Package for outputs/logs with levels Trace,  Debug, Info, Warn and Error
 // Inspired by Go stdlib slog package
 
 package utils
@@ -10,10 +10,8 @@ import (
 
 type Level int
 
-// color pallete map
+// Color pallete map
 // Code from https://github.com/Mandala/go-log/blob/master/colorful/colorful.go
-
-// TODO Handle case with outputs in file => no color
 var (
 	colorOff    = []byte("\033[0m")
 	colorRed    = []byte("\033[0;31m")
@@ -101,7 +99,6 @@ func LogWarn(msg string) {
 // Print log for level = WARN with string format
 func LogWarnf(format string, args ...interface{}) {
 	if getLevel() <= LevelWarn {
-		// log.Printf("[WARN] "+format, args...)
 		prefix := fmt.Sprintf("%sWARN%s ", colorOrange, colorOff)
 		log.Printf(prefix+" "+format, args...)
 	}
@@ -118,7 +115,6 @@ func LogInfo(msg string) {
 // Print log for level = INFO with string format
 func LogInfof(format string, args ...interface{}) {
 	if getLevel() <= LevelInfo {
-		// log.Printf("[INFO] "+format, args...)
 		prefix := fmt.Sprintf("%sINFO%s ", colorCyan, colorOff)
 		log.Printf(prefix+" "+format, args...)
 	}
@@ -142,8 +138,7 @@ func LogFatal(msg string) {
 	log.Fatalf("%s %s", prefix, msg)
 }
 
-// Print log for level = ERROR with string format
-// Print log for level = ERROR then exit
+// Print log for level = ERROR with string format, then exit
 func LogFatalf(format string, args ...interface{}) {
 	prefix := fmt.Sprintf("%sFATAL%s", colorPurple, colorOff)
 	log.Fatalf(prefix+" "+format, args...)
