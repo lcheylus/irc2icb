@@ -6,6 +6,7 @@ package main
 
 import (
 	"net"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -16,6 +17,11 @@ import (
 	irc "irc2icb/network/irc"
 )
 
+// Handle IRC LIST command
+// Inputs:
+// - irc_conn (net.Conn): connection to IRC client
+// - icb_conn (net.Conn): connection to ICB server
+// - params ([]string): parameters from LIST command
 func ircCommandList(irc_conn net.Conn, icb_conn net.Conn, params []string) {
 	// TODO Add cache with duration => not query ICB server for
 	// groups/users for each LIST command
@@ -93,6 +99,54 @@ SendListReplies:
 	// Send IRC notice for each invalid channel
 	for _, irc_channel := range invalid_channels {
 		irc.IrcSendNotice(irc_conn, "*** :Invalid channel '%s' in LIST command", irc_channel)
+	}
+}
+
+// Handle IRC NAMES command
+// Inputs:
+// - irc_conn (net.Conn): connection to IRC client
+// - icb_conn (net.Conn): connection to ICB server
+// - params (string): parameters from NAMES  command
+func ircCommandNames(irc_conn net.Conn, icb_conn net.Conn, params string) {
+	logger.LogInfof("NAMES command => parameters = %s", params)
+	channels := strings.Split(params, ",")
+
+	icb.IcbQueryGroupsUsers(icb_conn, false)
+
+	var group *icb.IcbGroup
+
+	for _, irc_channel := range channels {
+		// If the channel name is invalid or the channel does not exist,
+		// one RPL_ENDOFNAMES numeric containing the given channel name should be returned
+		if !utils.IsValidIrcChannel(irc_channel) {
+			logger.LogErrorf("invalid parameter '%s' for NAMES command", irc_channel)
+			irc.IrcSendRaw(irc_conn, "ERROR :Invalid parameter '%s' for NAMES command", irc_channel)
+			irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_ENDOFNAMES"], "%s :End of /NAMES list", irc_channel)
+			break
+		} else {
+			group = icb.IcbGetGroup(utils.GroupFromChannel(irc_channel))
+			if group == nil {
+				irc.IrcSendNotice(irc_conn, "*** :Unknown group '%s' in NAMES command", utils.GroupFromChannel(irc_channel))
+				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_ENDOFNAMES"], "%s :End of /NAMES list", irc_channel)
+				break
+			}
+		}
+
+		// returns one RPL_NAMREPLY numeric containing the users joined to the channel
+		// and a single RPL_ENDOFNAMES numeric
+		var icb_user *icb.IcbUser
+		var users_with_prefix []string
+
+		for _, user := range group.Users {
+			icb_user = icb.IcbGetUser(user)
+			users_with_prefix = append(users_with_prefix, irc.IrcGetNickWithPrefix(user, icb_user.Moderator))
+		}
+		// Sort list of users by moderator status
+		sort.SliceStable(users_with_prefix, func(i, j int) bool {
+			return utils.CompareUser(users_with_prefix[i], users_with_prefix[j])
+		})
+		irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_NAMREPLY"], "= %s :%s", irc_channel, strings.Join(users_with_prefix, " "))
+		irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_ENDOFNAMES"], "%s :End of /NAMES list", irc_channel)
 	}
 }
 

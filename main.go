@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
-	"sort"
 	"strings"
 	"syscall"
 	"time"
@@ -252,44 +251,7 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			ircCommandList(irc_conn, icb_conn, params)
 
 		case irc.IrcCommandNames:
-			logger.LogInfof("NAMES command => paramaters = %s", params[0])
-			channels := strings.Split(params[0], ",")
-
-			icb.IcbQueryGroupsUsers(icb_conn, false)
-
-			var group *icb.IcbGroup
-
-			for _, channel := range channels {
-				// If the channel name is invalid or the channel does not exist,
-				// one RPL_ENDOFNAMES numeric containing the given channel name should be returned
-				if !utils.IsValidIrcChannel(channel) {
-					logger.LogErrorf("invalid parameter '%s' for NAMES command", channel)
-					irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_ENDOFNAMES"], "%s :End of /NAMES list", channel)
-					break
-				} else {
-					group = icb.IcbGetGroup(utils.GroupFromChannel(channel))
-					if group == nil {
-						irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_ENDOFNAMES"], "%s :End of /NAMES list", channel)
-						break
-					}
-				}
-
-				// returns one RPL_NAMREPLY numeric containing the users joined to the channel
-				// and a single RPL_ENDOFNAMES numeric
-				var icb_user *icb.IcbUser
-				var users_with_prefix []string
-
-				for _, user := range group.Users {
-					icb_user = icb.IcbGetUser(user)
-					users_with_prefix = append(users_with_prefix, irc.IrcGetNickWithPrefix(user, icb_user.Moderator))
-				}
-				// Sort list of users by moderator status
-				sort.SliceStable(users_with_prefix, func(i, j int) bool {
-					return utils.CompareUser(users_with_prefix[i], users_with_prefix[j])
-				})
-				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_NAMREPLY"], "= %s :%s", channel, strings.Join(users_with_prefix, " "))
-				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_ENDOFNAMES"], "%s :End of /NAMES list", channel)
-			}
+			ircCommandNames(irc_conn, icb_conn, params[0])
 
 		case irc.IrcCommandMode:
 			logger.LogInfof("MODE command => parameters = %q", params)
