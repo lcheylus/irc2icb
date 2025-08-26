@@ -27,6 +27,7 @@ var (
 	chGroupsReceived        chan struct{} // Channel to signal reception of groups list
 	chUsersReceived         chan struct{} // Channel to signal reception of groups list with users
 	icbInfosLastRefresh     time.Time     // Last date for refresh of ICB groups/users from server
+	IcbInfosForceRefresh    bool          // Force refresh of infos from server
 )
 
 // IcbUser represents a ICB User (datas parsed for Command packet, type='wl')
@@ -84,12 +85,12 @@ func IcbQueryGroupsUsers(icb_conn net.Conn, force bool) {
 	minutes := int(duration / time.Minute)
 	seconds := int((duration % time.Minute) / time.Second)
 
-	if !force && (len(IcbGroups) != 0) && (duration <= time.Duration(MAX_AGE_INFOS)*time.Minute) {
+	if !IcbInfosForceRefresh && !force && (len(IcbGroups) != 0) && (duration <= time.Duration(MAX_AGE_INFOS)*time.Minute) {
 		logger.LogDebugf("[IcbQueryGroupsUsers] Get infos for groups/users - last refresh = %d minutes, %d seconds (<= %d minutes) => no query to ICB server", minutes, seconds, MAX_AGE_INFOS)
 		return
 	}
 
-	if force || len(IcbGroups) == 0 {
+	if IcbInfosForceRefresh || force || (len(IcbGroups) == 0) {
 		logger.LogDebugf("[IcbQueryGroupsUsers] Get infos for groups/users => query from ICB server")
 	} else {
 		logger.LogDebugf("[IcbQueryGroupsUsers] Get infos for groups/users - last refresh = %d minutes, %d seconds (> %d minutes) => query to ICB server", minutes, seconds, MAX_AGE_INFOS)
@@ -127,6 +128,7 @@ func IcbQueryGroupsUsers(icb_conn net.Conn, force bool) {
 	logger.LogInfof("%d users - %q", len(users), users)
 
 	icbInfosLastRefresh = time.Now()
+	IcbInfosForceRefresh = false
 }
 
 // Add group in global list of groups

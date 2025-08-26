@@ -81,6 +81,7 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 	irc.IrcInit()
 	icb.IcbLoggedIn = false
 	icb.IcbConnected = true
+	icb.IcbInfosForceRefresh = false
 	// Create context to close connection with ICB server
 	ctx, close_icb_connection := context.WithCancel(context.Background())
 

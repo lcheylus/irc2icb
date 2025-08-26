@@ -364,7 +364,6 @@ func parseIcbStatus(category string, content string, icb_conn net.Conn, irc_conn
 	}
 
 	// TODO Parse Status Message: Pass
-	// Register - content = 'Nick registered'
 	switch category {
 	case "Status":
 		if !strings.HasPrefix(content, ICB_JOIN) {
@@ -430,7 +429,10 @@ func parseIcbStatus(category string, content string, icb_conn net.Conn, irc_conn
 		} else {
 			irc.IrcNick = matches[2]
 			irc.IrcSendRaw(irc_conn, ":%s NICK %s", matches[1], matches[2])
+			// Force to refresh ICB infos from server, after changing nick
+			IcbInfosForceRefresh = true
 		}
+		// Force to refresh groups/users from ICB server, for the next request
 
 	case "Topic":
 		// content = 'Foxy changed the topic to "*slump*"'
@@ -458,6 +460,10 @@ func parseIcbStatus(category string, content string, icb_conn net.Conn, irc_conn
 		}
 		return nil
 
+	case "Register":
+		// Register - content = 'Nick registered'
+		irc.IrcSendNotice(irc_conn, "*** :ICB Status Message: %s", content)
+		return nil
 	case "Server":
 		irc.IrcSendNotice(irc_conn, "*** :ICB Message from Server: %s", content)
 		return nil
