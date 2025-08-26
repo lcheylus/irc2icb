@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	logger "irc2icb/utils"
 	utils "irc2icb/utils"
@@ -16,6 +17,87 @@ import (
 	icb "irc2icb/network/icb"
 	irc "irc2icb/network/irc"
 )
+
+// Handle IRC JOIN command
+// Inputs:
+// - irc_conn (net.Conn): connection to IRC client
+// - icb_conn (net.Conn): connection to ICB server
+// - params ([]string): parameter from JOIN command
+func ircCommandJoin(irc_conn net.Conn, icb_conn net.Conn, params []string) {
+	// TODO Handle special case with params == '0' => client leave all channels
+
+	// With ICB protocol, only one current group
+	// Format for JOIN paramaters: "<channel>{,<channel>} [<key>{,<key>}]"
+	if len(strings.Split(params[0], ",")) > 1 {
+		logger.LogErrorf("Only one unique ICB group for JOIN command - Received '%s'", params[0])
+		irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["ERR_NEEDMOREPARAMS"], "JOIN :Only one unique ICB group for join")
+		return
+	}
+
+	var group string
+
+	if !utils.IsValidIrcChannel(params[0]) {
+		logger.LogErrorf("invalid group '%s' (don't start with #)", params[0])
+		irc.IrcSendRaw(irc_conn, "ERROR :Invalid syntax for group '%s' in join (must start with #)", params[0])
+		return
+	} else {
+		group = params[0][1:]
+	}
+
+	if icb.IcbGroupCurrent == group {
+		logger.LogWarnf("JOIN command => already in ICB group '%s'", group)
+		irc.IrcSendNotice(irc_conn, "*** :You are already in ICB group %s", group)
+		return
+	} else {
+		var icb_group *icb.IcbGroup
+
+		// Get users for group
+		icb_group = icb.IcbGetGroup(group)
+		if icb_group == nil {
+			logger.LogWarnf("JOIN command => unable to find current group '%s' in ICB groups list", group)
+			logger.LogInfo("JOIN command => send ICB command to list groups and users")
+
+			icb.IcbQueryGroupsUsers(icb_conn, true)
+
+			icb_group = icb.IcbGetGroup(group)
+			// Error for unknown group
+			if icb_group == nil {
+				irc.IrcSendNotice(irc_conn, "*** :Unknown ICB group %s", group)
+				return
+			}
+		}
+
+		// Leave previous group
+		if icb.IcbGroupCurrent != "" {
+			logger.LogInfof("JOIN command => leave previous channel '%s'", utils.GroupToChannel(icb.IcbGroupCurrent))
+			icb_user := icb.IcbGetUser(irc.IrcNick)
+			irc.IrcSendPart(irc_conn, irc.IrcNick, icb_user.Username, icb_user.Hostname, utils.GroupToChannel(icb.IcbGroupCurrent))
+		}
+
+		logger.LogDebugf("JOIN command => send ICB command to join group '%s'", group)
+
+		// Case when it's not the first login
+		if icb.IcbGroupCurrent != "" {
+			previous_group := icb.IcbGroupCurrent
+			icb.IcbJoinGroup(icb_conn, group)
+
+			// Wait Error packet if group is restricted, with timeout
+			select {
+			case <-icb.IcbChGroupRestricted:
+				logger.LogWarnf("Unable to join group '%s' => restricted", group)
+				irc.IrcSendRaw(irc_conn, "ERROR :Access to ICB group %s is restricted", group)
+				icb.IcbJoinGroup(icb_conn, previous_group)
+				group = previous_group
+				irc.IrcSendNotice(irc_conn, "*** :Rejoin previous ICB group %s", group)
+			case <-time.After(1 * time.Second):
+				logger.LogDebugf("No restriction to join group '%s'", group)
+			}
+
+			icb.IcbGroupCurrent = group
+			icb.IcbSendIrcJoinReply(irc_conn, group)
+		}
+	}
+}
 
 // Handle IRC LIST command
 // Inputs:
