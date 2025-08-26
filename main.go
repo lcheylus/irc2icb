@@ -151,21 +151,7 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 				go icb.GetIcbPackets(icb_conn, irc_conn, ctx)
 
 			} else {
-				// Change nick
-				nick := params[0]
-				if nick == irc.IrcNick {
-					irc.IrcSendNotice(irc_conn, "*** :No change, your nick is already %s", nick)
-					break
-				}
-				// Check if param to change nick is valid
-				switch icb.IcbValidNickname(nick) {
-				case icb.ICB_NICK_TOOLONG:
-					irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["ERR_ERRONEUSNICKNAME"], "%s :Nickname too long (length = %d)", nick, len(nick))
-				case icb.ICB_NICK_INVALID:
-					irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["ERR_ERRONEUSNICKNAME"], "%s :Erroneus nickname", nick)
-				default:
-					icb.IcbSendNick(icb_conn, params[0])
-				}
+				ircCommandChangeNick(irc_conn, icb_conn, params[0])
 			}
 
 		case irc.IrcCommandUser:

@@ -99,6 +99,27 @@ func ircCommandJoin(irc_conn net.Conn, icb_conn net.Conn, params []string) {
 	}
 }
 
+// Change nick sent via IRC NICK command
+// Inputs:
+// - irc_conn (net.Conn): connection to IRC client
+// - icb_conn (net.Conn): connection to ICB server
+// - nick (string): nick from NICK command
+func ircCommandChangeNick(irc_conn net.Conn, icb_conn net.Conn, nick string) {
+	if nick == irc.IrcNick {
+		irc.IrcSendNotice(irc_conn, "*** :No change, your nick is already %s", nick)
+		return
+	}
+	// Check if param to change nick is valid
+	switch icb.IcbValidNickname(nick) {
+	case icb.ICB_NICK_TOOLONG:
+		irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["ERR_ERRONEUSNICKNAME"], "%s :Nickname too long (length = %d)", nick, len(nick))
+	case icb.ICB_NICK_INVALID:
+		irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["ERR_ERRONEUSNICKNAME"], "%s :Erroneus nickname", nick)
+	default:
+		icb.IcbSendNick(icb_conn, nick)
+	}
+}
+
 // Handle IRC LIST command
 // Inputs:
 // - irc_conn (net.Conn): connection to IRC client
