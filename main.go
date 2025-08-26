@@ -331,67 +331,10 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			ircCommandWhois(irc_conn, icb_conn, params[0])
 
 		case irc.IrcCommandTopic:
-			logger.LogInfof("TOPIC command params = %q", params)
-
-			// Get topic for current group => get topic from ICB with topic = ""
-			// Reply from parsing Generic command output
-			if len(params) == 1 && params[0] == utils.GroupToChannel(icb.IcbGroupCurrent) {
-				icb.IcbSendTopic(icb_conn, "")
-				break
-			}
-			// Get topic for another group
-			if len(params) == 1 && params[0] != utils.GroupToChannel(icb.IcbGroupCurrent) {
-				group := icb.IcbGetGroup(utils.GroupFromChannel(params[0]))
-				if group == nil {
-					irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["ERR_NOSUCHCHANNEL"], "%s :No such channel", params[0])
-					break
-				}
-				if group.Topic == icb.ICB_TOPICNONE {
-					irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_NOTOPIC"], "%s :No topic is set", utils.GroupToChannel(group.Name))
-					break
-				} else {
-					irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_TOPIC"], "%s :%s", utils.GroupToChannel(group.Name), group.Topic)
-					break
-				}
-			}
-
-			// Set/delete topic
-			if params[0] != utils.GroupToChannel(icb.IcbGroupCurrent) {
-				logger.LogWarnf("invalid channel '%s' for TOPIC command", params[0])
-				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["ERR_NOTONCHANNEL"], "%s :You're not on that channel", params[0])
-				break
-			}
-			if params[1] == "" {
-				// Case to "delete" topic for current group
-				icb.IcbSendTopic(icb_conn, icb.ICB_TOPICNONE)
-			} else {
-				icb.IcbSendTopic(icb_conn, params[1])
-			}
+			ircCommandTopic(irc_conn, icb_conn, params)
 
 		case irc.IrcCommandKick:
-			// params[0] = channel
-			// params[1] = "user *( "," user)"
-			logger.LogInfof("KICK command to kick nicks '%s' from channel '%s'", params[1], params[0])
-			if len(params) != 2 {
-				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["ERR_NEEDMOREPARAMS"], "%s :Invalid KICK command, needs more parameters", params[0])
-				break
-			}
-			if params[0] != utils.GroupToChannel(icb.IcbGroupCurrent) {
-				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["ERR_NOTONCHANNEL"], "%s :You're not on that channel", params[0])
-				break
-			}
-			users := strings.Split(params[1], ",")
-			for _, user := range users {
-				group := icb.IcbGetGroup(utils.GroupFromChannel(params[0]))
-				if !group.IcbUserInGroup(user) {
-					logger.LogDebugf("KICK command nick '%s' => not in channel '%s'", user, params[0])
-					irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["ERR_NOTONCHANNEL"], "%s :%s isn't on that channel", params[0], user)
-				} else {
-					logger.LogDebugf("KICK command to kick nick '%s' from channel '%s'", user, params[0])
-					// If not moderator, error ERR_CHANOPRIVSNEEDED sent via ICB Error parsing
-					icb.IcbSendBoot(icb_conn, user)
-				}
-			}
+			ircCommandKick(irc_conn, icb_conn, params)
 
 		case irc.IrcCommandQuit:
 			logger.LogInfof("Client disconnected: %s\n", clientAddr)
