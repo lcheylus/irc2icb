@@ -254,36 +254,7 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			ircCommandNames(irc_conn, icb_conn, params[0])
 
 		case irc.IrcCommandMode:
-			logger.LogInfof("MODE command => parameters = %q", params)
-			if !utils.IsValidIrcChannel(params[0]) || utils.GroupFromChannel(params[0]) != icb.IcbGroupCurrent {
-				logger.LogDebugf("MODE command not for current ICB group => nothing to do - params = %q", params)
-				// TODO Return message for error
-				break
-			}
-
-			if len(params) == 1 {
-				// No need to send IRC reply RPL_CHANNELMODEIS (324)
-				// TODO Send ICB command to get users ?
-				// see https://github.com/lcheylus/icbirc-portable/blob/5117d377af58aedc94caf89208df477c2aa8a722/src/irc.c#L159
-				logger.LogDebugf("MODE command for group '%s' => TODO: get ICB users", params[0])
-				break
-			}
-
-			// Case for <modestring> defined
-			if len(params) > 1 {
-				if params[1] != "+o" {
-					logger.LogErrorf("MODE command: invalid args '%s'", params[1])
-					break
-				} else if len(params) < 3 {
-					logger.LogError("MODE command: no nick to pass moderation (+o)")
-					break
-				} else {
-					logger.LogDebugf("MODE command to pass moderation to '%s' (TODO)", params[2])
-					// TODO Command MODE +o <nick> => pass moderation to nick, send ICB command
-					// Check if user exists in ICBUsers
-					// icb_send_pass(server_fd, argv[3])
-				}
-			}
+			ircCommandMode(irc_conn, icb_conn, params)
 
 		case irc.IrcCommandWho:
 			ircCommandWho(irc_conn, icb_conn, params)
