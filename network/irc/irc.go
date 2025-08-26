@@ -25,6 +25,7 @@ var (
 )
 
 // Return code for IRC command
+// TODO: for each IRC command type, define type for returned params (string or []string)
 const (
 	IrcCommandNop = iota // Type for command without outputs
 	IrcCommandNick

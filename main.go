@@ -286,46 +286,7 @@ func handleIRCConnection(irc_conn net.Conn, server_addr string, server_port int)
 			}
 
 		case irc.IrcCommandWho:
-			// In the absence of the <mask> parameter, all visible (users who aren't invisible (user mode +i)
-			// and who don't have a common channel with the requesting client) are listed.
-			// The same result can be achieved by using a <mask> of "0" or any wildcard which will end up
-			// matching every visible user.
-			logger.LogInfof("WHO command => params = %q", params)
-
-			if len(params) == 0 || params[0] == "0" {
-				logger.LogInfo("WHO command => (TODO) case not handled to list all visible users")
-				break
-			}
-
-			// mask = channel
-			if utils.IsValidIrcChannel(params[0]) {
-				logger.LogDebug("WHO command => query groups and users")
-
-				icb.IcbQueryGroupsUsers(icb_conn, false)
-
-				// Check if group exists in ICB groups
-				group := utils.GroupFromChannel(params[0])
-				icb_group := icb.IcbGetGroup(group)
-				if icb_group == nil {
-					logger.LogErrorf("WHO command => unknown group '%s'", group)
-					irc.IrcSendRaw(irc_conn, "ERROR :Unknown ICB group '%s' for WHO command", group)
-					break
-				}
-
-				var icb_tmp_user *icb.IcbUser
-
-				for _, user := range icb_group.Users {
-					icb_tmp_user = icb.IcbGetUser(user)
-					// RPL_WHOREPLY message format = "<client> <channel> <username> <host> <server> <nick> <flags> :<hopcount> <realname>"
-					irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_WHOREPLY"], "%s %s %s %s %s H :5 %s",
-						utils.GroupToChannel(group), icb_tmp_user.Username, utils.TrimHostname(icb_tmp_user.Hostname), icb.GetIcbHostId(),
-						icb_tmp_user.Nick, icb_tmp_user.Username)
-				}
-				irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["RPL_ENDOFWHO"], "%s :End of /WHO list", utils.GroupToChannel(group))
-				break
-			}
-			// TODO Case if mask != channel
-			logger.LogInfof("WHO command => (TODO) case not handled for mask '%s'", params[0])
+			ircCommandWho(irc_conn, icb_conn, params)
 
 		case irc.IrcCommandWhois:
 			ircCommandWhois(irc_conn, icb_conn, params[0])
