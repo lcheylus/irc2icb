@@ -117,6 +117,7 @@ func ircCommandChangeNick(irc_conn net.Conn, icb_conn net.Conn, nick string) {
 		irc.IrcSendCode(irc_conn, irc.IrcNick, irc.IrcReplyCodes["ERR_ERRONEUSNICKNAME"], "%s :Erroneus nickname", nick)
 	default:
 		icb.IcbSendNick(icb_conn, nick)
+		irc.IrcNick = nick
 	}
 }
 
